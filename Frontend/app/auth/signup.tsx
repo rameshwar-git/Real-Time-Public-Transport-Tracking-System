@@ -1,4 +1,4 @@
-import { styles } from "../css";
+import { styles } from "../../css/css";
 import React, { useState } from "react";
 import {
   Text,
@@ -16,7 +16,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { env } from "@/app/env";
+import { env } from "@/config/env";
 import { UserData } from "@/datatypes/userdata";
 
 const SignUpScreen: React.FC = () => {
@@ -54,7 +54,7 @@ const SignUpScreen: React.FC = () => {
       await AsyncStorage.setItem("userId", data.userId);
 
       Alert.alert("Success", "Registration completed!");
-      router.replace("/(tabs)/home");
+      router.replace("/(tabs)");
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "Something went wrong");

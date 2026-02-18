@@ -53,3 +53,23 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+
+export const mapstyle = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  map: {
+    width: "100%",
+    height: "100%",
+  },
+  infoBox: {
+    position: "absolute",
+    bottom: 40,
+    alignSelf: "center",
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 12,
+    elevation: 5,
+  },
+});
+

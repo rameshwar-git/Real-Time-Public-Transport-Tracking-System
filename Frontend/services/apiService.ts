@@ -1,5 +1,6 @@
-const API_BASE = process.env.API_URL;
+import {env} from "@/config/env";
 
+const API_BASE = env.API_URL;
 export const fetchAllLocations = async () => {
     const res = await fetch(`${API_BASE}/location/allLocation`);
     return res.json();

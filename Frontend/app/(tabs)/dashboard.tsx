@@ -2,8 +2,13 @@ import { Platform, StyleSheet } from 'react-native';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import ButtonComponent from '@/components/button';
+import { handleLogout } from '@/hooks/auth/auth';
 
 export default function TabTwoScreen() {
+
+  
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
@@ -16,6 +21,7 @@ export default function TabTwoScreen() {
         />
       }>
       <ThemedText style={styles.titleContainer}>To Do</ThemedText>
+      <ButtonComponent title={"Logout"} onPress={handleLogout}/>
     </ParallaxScrollView>
   );
 }

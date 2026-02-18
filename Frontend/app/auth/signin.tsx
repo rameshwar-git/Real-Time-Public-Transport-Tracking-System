@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -11,9 +11,7 @@ import { Card } from "react-native-paper";
 import { ThemedText } from "@/components/themed-text";
 import TextInputComponent from "@ui/textinput";
 import ButtonComponent from "@/components/button";
-
-import { env } from "@/app/env";
-import { LoginData } from "@/datatypes/userdata";
+import { handleSignIn, validate } from "@/hooks/auth/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
@@ -21,20 +19,27 @@ export default function SigninScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const API_URL = env.API_URL;
-  const handleSignIn = async () => {
-
-    const validate = await fetch(`${API_URL}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    AsyncStorage.setItem("userId", validate.toString() );
-
-    router.replace("/(tabs)/home");
+  const signin = async () => {
+    const status = await handleSignIn({ email, password });
   };
 
+  useEffect(() => {
+    const checkUser = async () => {
+      try {
+        const userId = await AsyncStorage.getItem("userId");
+        if(!userId) {
+          return;
+        }      
+        const status = await validate(userId.toString());
+        if(status===400){
+          router.replace("/(tabs)")
+        }
+      } catch (err: any) {
+        console.error(err.message);
+      }
+    };
+    checkUser();
+  }, []);
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
@@ -66,7 +71,7 @@ export default function SigninScreen() {
           <ButtonComponent
             title="Sign In"
             isDisabled={!email || !password}
-            onPress={handleSignIn}
+            onPress={signin}
           />
 
           <View style={styles.footer}>

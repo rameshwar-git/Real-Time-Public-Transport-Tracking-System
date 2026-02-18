@@ -1,6 +1,6 @@
 import { useRef } from "react";
-import { watchUserLocation } from "../services/locationService";
-import { updateLocation } from "../services/apiService";
+import { watchUserLocation } from "@/services/locationServices";
+import { updateLocation } from "@/services/apiService";
 
 export const useLocationSharing = (userId: string | null) => {
     const locationSub = useRef<any>(null);
