@@ -46,18 +46,21 @@ const SignUpScreen: React.FC = () => {
         body: JSON.stringify(userData),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Registration failed");
+        const message = data?.error || data?.message || "Registration failed";
+        Alert.alert("Registration Failed", message);
+        return;
       }
 
-      const data = await response.json();
       await AsyncStorage.setItem("userId", data.userId);
 
-      Alert.alert("Success", "Registration completed!");
-      router.replace("/(tabs)");
-    } catch (error) {
+      Alert.alert("Success", "Account created! Please sign in.");
+      router.replace("/auth/signin");
+    } catch (error: any) {
       console.error(error);
-      Alert.alert("Error", "Something went wrong");
+      Alert.alert("Error", error?.message ?? "Something went wrong. Check your connection.");
     }
   };
 

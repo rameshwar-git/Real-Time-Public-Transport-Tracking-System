@@ -2,10 +2,10 @@ import { Request, Response } from 'express';
 import LocationModel from '@/models/location/UserLocation';
 
 //creating new location entry in DB
-export const createLocation = async (req: Request, res: Response, userId: any) => {
+export const createLocation = async (req: Request, res: Response) => {
     try {
-        const location = await LocationModel.create({ ...req.body, userId });
-        return location;
+        const location = await LocationModel.create({ ...req.body });
+        return location._id;
     } catch (err: any) {
         res.status(500).json({ error: err.message });
     }
@@ -42,7 +42,7 @@ export const getLocation = async (req: Request, res: Response) => {
 
 export const getAllLocation = async (req: Request, res: Response) => {
     try {
-        const allLocation =await LocationModel.find({}).select("userId currentLocation -_id").lean();
+        const allLocation =await LocationModel.find({}).select("userId currentLocation vehicleId destination -_id").lean();
         return res.status(200).json(allLocation);
     } catch (err: any) {
         res.status(500).json(err.message);

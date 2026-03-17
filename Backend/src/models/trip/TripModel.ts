@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { Trip } from '../interfaces/trip';
+import { Trip } from '../interfaces/tripModel';
 
 const TripSchema = new Schema<Trip>({
     passengerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },

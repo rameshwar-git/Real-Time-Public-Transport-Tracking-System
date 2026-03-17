@@ -1,5 +1,5 @@
 import {Schema, model} from 'mongoose';
-import { users } from '@models/interfaces/users';
+import { users } from '@/models/interfaces/usersModel';
 
 const driverSchema = new Schema<users>({
     name: {type: String, required: true},
@@ -8,8 +8,11 @@ const driverSchema = new Schema<users>({
     email: {type: String, required: true, unique: true},
     phone: {type: String, required: true, unique: true},
     password: {type: String, required: true},
+    locationId: { type: Schema.Types.ObjectId, required: true },
     createdAt: {type: Date, default: Date.now},
-    updatedAt: {type: Date, default: Date.now}
+    updatedAt: {type: Date, default: Date.now},
+    status: {type: String, default:"OFFLINE"},
+    lastSeen: { type: Date, default: Date.now},
 });
 
 const DriverModel = model<users>('Driver', driverSchema);

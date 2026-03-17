@@ -1,0 +1,9 @@
+
+export enum Status {
+  ONLINE = "ONLINE",
+  OFFLINE = "OFFLINE",
+  WAITING = "WAITING",
+  BUSY = "BUSY",
+  BOOKED = "BOOKED",
+  OCCUPIED = "OCCUPIED",
+}
