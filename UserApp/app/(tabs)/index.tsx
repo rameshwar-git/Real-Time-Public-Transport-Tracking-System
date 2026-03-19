@@ -7,6 +7,8 @@ import { MapViewComponent } from "@components/map/MapViewComponent";
 import { DestinationSearch } from "@components/map/DestinationSearch";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { requestPermission, reverseGeocode, getCurrentLocation } from "@/services/locationServices";
+import { socket } from "@/services/socket";
+import { getDistance, calculateRouteMatch, findNearestUser } from "@/utils/geometry";
 
 export default function App() {
     const { locations } = useLiveLocations();
@@ -21,6 +23,7 @@ export default function App() {
     const [origin, setOrigin] = useState<any>(null);
     const [originText, setOriginText] = useState<string>("");
     const [isConfirmed, setIsConfirmed] = useState<boolean>(false);
+    const [assignedDriverId, setAssignedDriverId] = useState<string | null>(null);
     const [mapComponents, setMapComponents] = useState<any>(null);
     const mapRef = useRef<any>(null);
 
@@ -60,6 +63,13 @@ export default function App() {
         initGPS();
     }, []);
 
+    // Broadcast live location on map before confirming
+    useEffect(() => {
+        if (userId && origin && !isConfirmed) {
+            startSharing();
+        }
+    }, [userId, origin, isConfirmed]);
+
     // Reverse geocode the origin coordinates to populate the search bar
     useEffect(() => {
         const fetchAddress = async () => {
@@ -70,6 +80,51 @@ export default function App() {
         };
         fetchAddress();
     }, [origin, originText]);
+
+
+    const handleConfirmRide = () => {
+        if (!origin || !destination) {
+            alert("Please set both origin and destination.");
+            return;
+        }
+
+        const validDrivers = locations.filter((u: any) => {
+            if (!u.vehicleId || !u.currentLocation || !u.destination) return false;
+
+            const match = calculateRouteMatch(u.currentLocation, u.destination, origin, destination);
+            
+            // If driver is far from pickup (> 50km), ignore them
+            if (match.pickupDist > 50) return false;
+
+            return match.isMatch;
+        });
+
+        if (validDrivers.length === 0) {
+            alert("No available drivers heading your way at the moment.");
+            return;
+        }
+
+        const nearestDriver = findNearestUser(validDrivers, origin);
+
+        if (!nearestDriver) {
+            alert("Unexpected error finding nearest driver.");
+            return;
+        }
+
+        setIsConfirmed(true);
+        setAssignedDriverId(nearestDriver.userId);
+
+        // Start broadcasting our passenger location to the backend
+        startSharing(destination, 'confirmed');
+
+        // Ask Backend to assign the passenger to this driver
+        socket.emit("request-ride", {
+            passengerId: userId,
+            driverId: nearestDriver.userId,
+            origin,
+            destination
+        });
+    };
 
     const MapView = mapComponents?.MapView;
     const Marker = mapComponents?.Marker;
@@ -125,13 +180,14 @@ export default function App() {
                         origin={origin}
                         mapRef={mapRef}
                         isConfirmed={isConfirmed}
+                        assignedDriverId={assignedDriverId}
                     />
                 </View>
 
                 {/* BOTTOM UI STATES */}
                 {destination && !isConfirmed && (
                     <View style={styles.bottomView}>
-                        <TouchableOpacity style={styles.btn} onPress={() => setIsConfirmed(true)}>
+                        <TouchableOpacity style={styles.btn} onPress={handleConfirmRide}>
                             <Text style={styles.btnText}>Confirm Ride</Text>
                         </TouchableOpacity>
                     </View>
@@ -219,4 +275,3 @@ const styles = StyleSheet.create({
         color: "#333",
     },
 });
-

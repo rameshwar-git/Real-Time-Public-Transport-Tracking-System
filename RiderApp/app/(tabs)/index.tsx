@@ -4,8 +4,10 @@ import { useLiveLocations } from "@/hooks/location/useLiveLocations";
 import { useLocationSharing } from "@/hooks/location/useLocationSharing";
 import { getUserId } from "@/services/storageService";
 import { MapViewComponent } from "@components/map/MapViewComponent";
+import { DestinationSearch } from "@components/map/DestinationSearch";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { requestPermission, getCurrentLocation } from "@/services/locationServices";
+import { socket } from "@/services/socket";
 
 export default function DriverDashboard() {
     const { locations } = useLiveLocations();
@@ -16,10 +18,12 @@ export default function DriverDashboard() {
         latitudeDelta: 30,
         longitudeDelta: 30,
     });
-    
+
     // Driver States
     const [origin, setOrigin] = useState<any>(null);
+    const [destination, setDestination] = useState<any>(null);
     const [isOnDuty, setIsOnDuty] = useState<boolean>(false);
+    const [passengerRequest, setPassengerRequest] = useState<any>(null);
     const [mapComponents, setMapComponents] = useState<any>(null);
     const mapRef = useRef<any>(null);
 
@@ -56,18 +60,63 @@ export default function DriverDashboard() {
         initGPS();
     }, []);
 
+    // Broadcast live location without destination when offline
+    useEffect(() => {
+        if (userId && origin && !isOnDuty) {
+            startSharing();
+        }
+    }, [userId, origin, isOnDuty]);
+
+    useEffect(() => {
+        if (!isOnDuty) {
+            setPassengerRequest(null);
+            return;
+        }
+
+        socket.on("ride-assigned", (data: any) => {
+            Alert.alert("Ride Assigned!", "A passenger has booked a ride along your route. Rerouting to their pickup location.");
+            setPassengerRequest(data);
+
+            // Re-center map over the passenger's origin
+            if (data.origin) {
+                mapRef.current?.animateToRegion({
+                    latitude: data.origin.latitude,
+                    longitude: data.origin.longitude,
+                    latitudeDelta: 0.05,
+                    longitudeDelta: 0.05,
+                });
+            }
+        });
+
+        return () => {
+            socket.off("ride-assigned");
+        };
+    }, [isOnDuty]);
+
     const toggleDutyStatus = async () => {
         if (isOnDuty) {
             stopSharing();
             setIsOnDuty(false);
+            setPassengerRequest(null);
+            setDestination(null); // Clear route from map!
             Alert.alert("Status Updated", "You are now Offline.");
+        } else if (!isOnDuty) {
+            startSharing();
+            setIsOnDuty(true);
+            setPassengerRequest(passengerRequest)
+            setDestination(destination);
+            Alert.alert("Status Updated", "You are now ONLINE and sharing your location.");
         } else {
+            if (!destination) {
+                Alert.alert("Destination Required", "Please set your destination before going on duty.");
+                return;
+            }
             const hasPermission = await requestPermission();
             if (!hasPermission) {
                 Alert.alert("Permission Required", "Background location is required to go on duty.");
                 return;
             }
-            await startSharing();
+            await startSharing(destination, 'on-duty');
             setIsOnDuty(true);
             Alert.alert("Status Updated", "You are now ONLINE and sharing your location.");
         }
@@ -87,6 +136,27 @@ export default function DriverDashboard() {
                     </Text>
                 </View>
 
+                {/* SEARCH CARD */}
+                {!isOnDuty && (
+                    <View style={styles.searchCard}>
+                        <DestinationSearch
+                            placeholder="Set your destination..."
+                            style={styles.destInput}
+                            onSelect={(coords: any) => {
+                                const destinationCoords = {
+                                    latitude: coords.lat,
+                                    longitude: coords.lng,
+                                };
+                                setDestination(destinationCoords);
+                                mapRef.current?.animateToRegion(
+                                    { ...destinationCoords, latitudeDelta: 0.007, longitudeDelta: 0.007 },
+                                    700
+                                );
+                            }}
+                        />
+                    </View>
+                )}
+
                 {/* MAP VIEW */}
                 <View style={{ height: mapHeight }}>
                     <MapViewComponent
@@ -96,16 +166,18 @@ export default function DriverDashboard() {
                         setMapRegion={setMapRegion}
                         locations={locations}
                         currentUserId={userId}
-                        destination={null}
+                        destination={passengerRequest ? passengerRequest.origin : destination}
                         origin={origin}
                         mapRef={mapRef}
+                        assignedPassengerId={passengerRequest?.passengerId}
+                        isOnDuty={isOnDuty}
                     />
                 </View>
 
                 {/* BOTTOM ACTION BUTTON */}
                 <View style={styles.bottomView}>
-                    <TouchableOpacity 
-                        style={[styles.btn, isOnDuty ? styles.offlineBtn : styles.onlineBtn]} 
+                    <TouchableOpacity
+                        style={[styles.btn, isOnDuty ? styles.offlineBtn : styles.onlineBtn]}
                         onPress={toggleDutyStatus}
                     >
                         <Text style={styles.btnText}>
@@ -120,6 +192,25 @@ export default function DriverDashboard() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#fff" },
+
+    searchCard: {
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 120 : 90,
+        left: 15,
+        right: 15,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 5,
+        elevation: 5,
+        zIndex: 10,
+        padding: 10,
+    },
+    destInput: {
+        marginTop: 5,
+    },
 
     statusHeaderCard: {
         position: 'absolute',

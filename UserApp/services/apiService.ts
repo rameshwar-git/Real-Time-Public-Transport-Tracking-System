@@ -1,4 +1,4 @@
-import { env } from "@/config/env";
+import {env} from "@/config/env";
 
 const API_BASE = env.API_URL;
 export const fetchAllLocations = async (token?: string | null) => {
@@ -9,15 +9,15 @@ export const fetchAllLocations = async (token?: string | null) => {
         headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${API_BASE}/passenger/location/all`, {
+    const res = await fetch(`${API_BASE}/location/driver/all`, {
         headers
     });
-
+    
     if (!res.ok) return [];
     return res.json();
 };
 
-export const updateLocation = async (userId: string, coords: any, destination?: any, locationId?: string, token?: string | null, status?: string) => {
+export const updateLocation = async (userId: string, coords: any, destination?: any, locationId?: string | null, token?: string | null, status?: string) => {
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
     };
@@ -25,7 +25,7 @@ export const updateLocation = async (userId: string, coords: any, destination?: 
         headers["Authorization"] = `Bearer ${token}`;
     }
 
-    await fetch(`${API_BASE}/driver/location/update/${locationId}`, {
+    await fetch(`${API_BASE}/location/passenger/update/${userId}`, {
         method: "PUT",
         headers,
         body: JSON.stringify({ currentLocation: coords, destination, locationId, status }),

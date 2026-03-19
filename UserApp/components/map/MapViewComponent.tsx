@@ -1,9 +1,10 @@
 import React from "react";
-import {Platform} from "react-native";
-import {UserLocation} from "@/types/map";
-import {Region} from "react-native-maps";
+import { Platform } from "react-native";
+import { UserLocation } from "@/types/map";
+import { Region } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
-import {env} from "@/config/env";
+import { env } from "@/config/env";
+import { getDistance, calculateRouteMatch } from "@/utils/geometry";
 
 type Props = {
     MapView: any;
@@ -16,6 +17,7 @@ type Props = {
     origin: any;
     mapRef: any;
     isConfirmed?: boolean;
+    assignedDriverId?: string | null;
 };
 
 export const MapViewComponent: React.FC<Props> = (
@@ -30,26 +32,16 @@ export const MapViewComponent: React.FC<Props> = (
         origin,
         mapRef,
         isConfirmed,
+        assignedDriverId
     }) => {
     if (!MapView || !mapRegion) return null;
 
     // Helper to calculate distance in km using Haversine formula
-    const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-        const R = 6371; // Radius of the earth in km
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = 
-            Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-            Math.sin(dLon/2) * Math.sin(dLon/2); 
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-        return R * c; // Distance in km
-    };
 
     return (
         <MapView
             ref={mapRef}
-            style={{flex: 1}}
+            style={{ flex: 1 }}
             region={mapRegion}
             onRegionChangeComplete={setMapRegion}
             showsUserLocation
@@ -59,32 +51,28 @@ export const MapViewComponent: React.FC<Props> = (
             pitchEnabled
             provider={Platform.OS === "android" ? MapView.PROVIDER_GOOGLE : undefined}
         >
-            {locations.map((u: any) => {
+            {Array.isArray(locations) && locations.map((u: any) => {
                 if (!u.currentLocation) return null;
                 if (u.userId === currentUserId) return null;
 
                 const isDriver = !!u.vehicleId;
 
                 // FILTERING LOGIC
-                // If the user has confirmed the ride, only show DRIVERS within 500m (0.5km) of the origin
-                if (isConfirmed && isDriver) {
-                    if (!origin || !u.currentLocation) return null;
+                if (!isDriver) return null; // Always hide simple passengers to keep map clean
 
-                    const distance = getDistance(
-                        origin.latitude,
-                        origin.longitude,
-                        u.currentLocation.latitude,
-                        u.currentLocation.longitude
-                    );
+                if (isConfirmed && assignedDriverId) {
+                    if (u.userId !== assignedDriverId) return null; // Isolate assigned driver
+                } else if (origin && destination && u.destination) {
+                    const match = calculateRouteMatch(u.currentLocation, u.destination, origin, destination);
+                    
+                    // If driver is far from the pickup (> 50km), ignore them
+                    if (match.pickupDist > 50) return null;
 
-                    // If driver is > 0.5km (500m) away from the user's origin, filter them out
-                    if (distance > 0.5) return null;
-                } else if (isConfirmed && !isDriver) {
-                    // Hide other ordinary passengers if ride is confirmed
-                    return null;
-                } else if (!isConfirmed && !isDriver) {
-                    // Before confirmation, hide other ordinary passengers anyway to keep map clean (optional, keeping Uber style)
-                    return null;
+                    if (!match.isMatch) return null;
+                } else if (origin && !destination) {
+                    // If passenger hasn't set destination, only show nearby drivers (within 1.5km)
+                    const dist = getDistance(origin.latitude, origin.longitude, u.currentLocation.latitude, u.currentLocation.longitude);
+                    if (dist > 1.5) return null;
                 }
 
                 return (

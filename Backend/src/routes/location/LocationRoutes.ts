@@ -1,11 +1,21 @@
 import express from 'express';
-import { updateLocation, getLocation, getAllLocation } from '@/controllers/location/LocationController';
+import {
+    updatePassengerLocation,
+    updateDriverLocation,
+    getAllPassengerLocations,
+    getAllDriverLocations
+} from '@/controllers/location/LocationController';
+import { verifyToken } from '@/middleware/verifyToken';
 
 const locationRoutes = express.Router();
 
-// Use this route to update GPS location
-locationRoutes.put('/location/updateLocation/:userId', updateLocation);
-locationRoutes.get('/location/getLocation/:userId', getLocation);
-locationRoutes.get('/location/allLocation/', getAllLocation);
+// Passenger Routes
+locationRoutes.put('/passenger/location/update/:locationId', verifyToken, updatePassengerLocation);
+locationRoutes.get('/passenger/location/all', verifyToken, getAllPassengerLocations);
+
+// Driver Routes
+locationRoutes.put('/driver/location/update/:locationId', verifyToken, updateDriverLocation);
+locationRoutes.get('/driver/location/all', verifyToken, getAllDriverLocations);
+
 
 export default locationRoutes;

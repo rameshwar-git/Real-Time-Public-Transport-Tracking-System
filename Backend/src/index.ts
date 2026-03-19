@@ -1,6 +1,6 @@
 import express from 'express';
 import http from 'http';
-import {connectDB} from '@config/db';
+import { connectDB } from '@config/db';
 import passengerRoutes from '@/routes/user/passenger/PassengerRoutes';
 import driverRoutes from '@/routes/user/driver/DriverRoutes';
 import locationRoutes from '@/routes/location/LocationRoutes';
@@ -18,8 +18,9 @@ app.use(express.json());
 
 app.use('/api', passengerRoutes);
 app.use('/api', driverRoutes);
-app.use('/api', locationRoutes)
+app.use('/api/', locationRoutes);
 app.use('/api', tripRoutes);
+
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 const ID = process.env.NETWORK_ID as string;
@@ -33,6 +34,6 @@ const io = new Server(server, {
 
 initSocket(io);
 
-server.listen(PORT, ID , () => {
-    console.log(`Server running on ${ID}:${PORT}`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on 0.0.0.0:${PORT}`);
 });

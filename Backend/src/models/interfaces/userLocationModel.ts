@@ -1,6 +1,7 @@
-import { Schema,Document } from 'mongoose';
+import { Schema, Document } from 'mongoose';
 
 export interface GPSData extends Document {
+    userId?: Schema.Types.ObjectId; // Reference to the user who owns this location
     vehicleId?: Schema.Types.ObjectId; // Reference to the vehicle
     status?: string; // e.g., 'active', 'inactive'
     currentLocation?: {
@@ -10,6 +11,6 @@ export interface GPSData extends Document {
     destination?: {
         latitude: number;
         longitude: number;
-    };    
+    };
     timestamp?: Date;
 };

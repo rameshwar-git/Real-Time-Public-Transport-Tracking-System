@@ -1,6 +1,6 @@
 import PassengerModel from '@/models/users/UserPassengerModel';
 import { Request, Response } from 'express';
-import { createLocation } from '@controllers/location/LocationController';
+import { createPassengerLocation } from '@controllers/location/LocationController';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { AuthRequest } from "@/middleware/verifyToken";
@@ -16,7 +16,8 @@ export const createPassenger = async (req: Request, res: Response) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const locationId = await createLocation(req, res);
+    //Create Location for Passenger
+    const locationId = await createPassengerLocation(req, res);
 
     const userPassenger = await PassengerModel.create({
       ...rest,
@@ -27,6 +28,7 @@ export const createPassenger = async (req: Request, res: Response) => {
     return res.status(201).json({
       message: "USER_CREATED",
       userId: userPassenger._id,
+      locationId: userPassenger.locationId,
     });
 
   } catch (err: any) {
@@ -34,6 +36,7 @@ export const createPassenger = async (req: Request, res: Response) => {
   }
 };
 
+//Get Passenger
 export const getPassenger = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
@@ -50,6 +53,7 @@ export const getPassenger = async (req: AuthRequest, res: Response) => {
   }
 };
 
+//Validate Passenger Login
 export const validateLogin = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
@@ -84,11 +88,8 @@ export const validateLogin = async (req: Request, res: Response) => {
     return res.status(200).json({
       message: "SUCCESS",
       token,
-      user: {
-        id: passenger._id,
-        email: passenger.email,
-        name: passenger.name,
-      },
+      locationId: passenger.locationId,
+      userId: passenger._id,
     });
 
   } catch (error) {
@@ -97,6 +98,7 @@ export const validateLogin = async (req: Request, res: Response) => {
   }
 };
 
+//Validate Passenger
 export const validateUser = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;

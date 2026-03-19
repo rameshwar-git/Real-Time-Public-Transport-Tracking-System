@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchAllLocations } from "@/services/apiService";
+import { getToken } from "@/services/storageService";
 
 export const useLiveLocations = () => {
     const [locations, setLocations] = useState<any[]>([]);
     const pollRef = useRef<any>(null);
 
     const load = async () => {
-        const data = await fetchAllLocations();
-        setLocations(data);
+        const token = await getToken();
+        const data = await fetchAllLocations(token);
+        if (Array.isArray(data)) {
+            setLocations(data);
+        }
     };
 
     const startPolling = () => {

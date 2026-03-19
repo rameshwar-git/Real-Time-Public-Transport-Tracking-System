@@ -1,26 +1,42 @@
 import { useRef } from "react";
-import { watchUserLocation } from "@/services/locationServices";
+import { getCurrentLocation } from "@/services/locationServices";
 import { updateLocation } from "@/services/apiService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getToken } from "@/services/storageService";
 
 export const useLocationSharing = (userId: string | null) => {
-    const locationSub = useRef<any>(null);
+    const locationInterval = useRef<any>(null);
 
-    const startSharing = async () => {
+    const startSharing = async (destination?: any, status?: string) => {
         if (!userId) return;
+        if (locationInterval.current) stopSharing();
 
-        locationSub.current = await watchUserLocation(async (loc: any) => {
-            const coords = {
-                latitude: loc.coords.latitude,
-                longitude: loc.coords.longitude,
-            };
+        const token = await getToken();
+        const locationId = await AsyncStorage.getItem("locationId");
 
-            await updateLocation(userId, coords);
-        });
+        const updateFn = async () => {
+            const loc = await getCurrentLocation();
+            if (loc) {
+                const coords = {
+                    latitude: loc.latitude,
+                    longitude: loc.longitude,
+                };
+                await updateLocation(userId!, coords, destination, locationId || undefined, token, status || 'inactive');
+            }
+        };
+
+        // Immediate update
+        await updateFn();
+
+        // 5-second polling
+        locationInterval.current = setInterval(updateFn, 5000);
     };
 
     const stopSharing = () => {
-        locationSub.current?.remove();
-        locationSub.current = null;
+        if (locationInterval.current) {
+            clearInterval(locationInterval.current);
+            locationInterval.current = null;
+        }
     };
 
     return { startSharing, stopSharing };

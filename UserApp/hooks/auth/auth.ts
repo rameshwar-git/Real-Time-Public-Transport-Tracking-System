@@ -34,25 +34,24 @@ export const handleSignIn = async ({ email, password }: AuthPayload) => {
     const data = await response.json();
 
     if (!response.ok) {
-        return data?.error || data?.message || "Login failed";
+      return { status: "FAILED", message: data?.error || data?.message || "Login failed" };
     }
     if (data.message !== "SUCCESS" || !data.token) {
-        return "Login failed";
+      return { status: "FAILED", message: "Login failed" };
     }
 
     // Save token to SecureStore
     await saveToken(data.token);
 
     // Save userId to AsyncStorage for socket auth and other services
-    if (data.user?.id) {
-      await AsyncStorage.setItem("userId", data.user.id);
-    }
+    if (data.userId) await AsyncStorage.setItem("userId", data.userId);
+    if (data.locationId) await AsyncStorage.setItem("locationId", data.locationId);
 
     router.replace("/(tabs)");
-    return "SUCCESS";
+    return { status: "SUCCESS", message: "Login successful" };
   } catch (error: any) {
     console.log("SIGN IN ERROR:", error);
-    return error?.message || "Network error";
+    return { status: "FAILED", message: error?.message || "Network error" };
   }
 };
 
@@ -85,5 +84,6 @@ export const validateSession = async () => {
 export const handleLogout = async () => {
   await removeToken();
   await AsyncStorage.removeItem("userId");
+  await AsyncStorage.removeItem("locationId");
   router.replace("/auth/signin");
 };

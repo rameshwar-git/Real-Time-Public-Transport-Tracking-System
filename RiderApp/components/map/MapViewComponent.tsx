@@ -4,6 +4,7 @@ import {UserLocation} from "@/types/map";
 import {Region} from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import {env} from "@/config/env";
+import {getDistance, getNearestNUsers} from "@/utils/geometry";
 
 type Props = {
     MapView: any;
@@ -16,6 +17,8 @@ type Props = {
     origin: any;
     mapRef: any;
     isConfirmed?: boolean;
+    assignedPassengerId?: string | null;
+    isOnDuty?: boolean;
 };
 
 export const MapViewComponent: React.FC<Props> = (
@@ -30,21 +33,11 @@ export const MapViewComponent: React.FC<Props> = (
         origin,
         mapRef,
         isConfirmed,
+        assignedPassengerId,
+        isOnDuty
     }) => {
     if (!MapView || !mapRegion) return null;
 
-    // Helper to calculate distance in km using Haversine formula
-    const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-        const R = 6371; // Radius of the earth in km
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = 
-            Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-            Math.sin(dLon/2) * Math.sin(dLon/2); 
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-        return R * c; // Distance in km
-    };
 
     return (
         <MapView
@@ -59,44 +52,41 @@ export const MapViewComponent: React.FC<Props> = (
             pitchEnabled
             provider={Platform.OS === "android" ? MapView.PROVIDER_GOOGLE : undefined}
         >
-            {locations.map((u: any) => {
-                if (!u.currentLocation) return null;
-                if (u.userId === currentUserId) return null;
+            {(() => {
+                if (!origin) return null;
 
-                const isDriver = !!u.vehicleId;
+                // Stop rendering passengers if the driver is offline.
+                if (!isOnDuty && !assignedPassengerId) return null;
 
-                // FILTERING LOGIC
-                // If the user has confirmed the ride, only show DRIVERS within 500m (0.5km) of the origin
-                if (isConfirmed && isDriver) {
-                    if (!origin || !u.currentLocation) return null;
+                if (!Array.isArray(locations)) return null;
 
-                    const distance = getDistance(
-                        origin.latitude,
-                        origin.longitude,
-                        u.currentLocation.latitude,
-                        u.currentLocation.longitude
-                    );
-
-                    // If driver is > 0.5km (500m) away from the user's origin, filter them out
-                    if (distance > 0.5) return null;
-                } else if (isConfirmed && !isDriver) {
-                    // Hide other ordinary passengers if ride is confirmed
-                    return null;
-                } else if (!isConfirmed && !isDriver) {
-                    // Before confirmation, hide other ordinary passengers anyway to keep map clean (optional, keeping Uber style)
-                    return null;
-                }
-
-                return (
-                    <React.Fragment key={u.userId || u._id}>
-                        <Marker
-                            coordinate={u.currentLocation}
-                            image={isDriver ? require("@assets/map/bus.png") : require("@assets/map/passenger.png")}
-                        />
-                    </React.Fragment>
+                const passengers = locations.filter((u: any) => 
+                    u.currentLocation && 
+                    u.userId !== currentUserId && 
+                    !u.vehicleId && u.status === 'confirmed'
                 );
 
-            })}
+                const nearestPassengers = getNearestNUsers(passengers, origin, 5);
+
+                if (assignedPassengerId) {
+                    const assignedIsIncluded = nearestPassengers.some(p => p.userId === assignedPassengerId);
+                    if (!assignedIsIncluded) {
+                        const assignedPassenger = passengers.find(p => p.userId === assignedPassengerId);
+                        if (assignedPassenger) {
+                            const dist = getDistance(origin.latitude, origin.longitude, assignedPassenger.currentLocation!.latitude, assignedPassenger.currentLocation!.longitude);
+                            nearestPassengers.push({ ...assignedPassenger, dist });
+                        }
+                    }
+                }
+
+                return nearestPassengers.map((u: any) => (
+                    <Marker 
+                        key={u.userId || u._id} 
+                        coordinate={u.currentLocation} 
+                        image={require("@assets/map/passenger.png")} 
+                    />
+                ));
+            })()}
             {origin && destination && (
                 <MapViewDirections
                     origin={origin}

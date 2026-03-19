@@ -26,14 +26,14 @@ export default function SigninScreen() {
   const signin = async () => {
     setSigningIn(true);
 
-    const status = await handleSignIn({ email, password });
+    const result = await handleSignIn({ email, password });
 
     setSigningIn(false);
 
-    if (status === "SUCCESS") {
+    if (result.status === "SUCCESS") {
       connectSocket();
     } else {
-        Alert.alert("Login Failed", status);
+        Alert.alert("Login Failed", result.message || "An unknown error occurred.");
     }
   };
 
