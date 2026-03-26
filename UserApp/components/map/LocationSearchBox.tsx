@@ -1,8 +1,8 @@
-import React, {useEffect, useState} from "react";
+import React, { useEffect, useState } from "react";
 import { TextInput, FlatList, Text, View, StyleSheet } from "react-native";
 import { getPlacePredictions } from "@/hooks/location/getPlacePredictions";
 import { getPlaceDetails } from "@/hooks/location/getPlaceDetails";
-import {getCurrentLocation} from "@/services/locationServices";
+import { getCurrentLocation } from "@/services/locationServices";
 import LocationSearchInput from "@ui/LocationSearchInput";
 
 
@@ -22,7 +22,7 @@ interface Cord {
     longitude: number;
 }
 
-export const DestinationSearch: React.FC<Props> = ({ onSelect, placeholder = "Search destination", style, initialQuery = "" }) => {
+export const LocationSearchBox: React.FC<Props> = ({ onSelect, placeholder = "Search destination", style, initialQuery = "" }) => {
     const [query, setQuery] = useState<string>(initialQuery);
     const [results, setResults] = useState<PlacePrediction[]>([]);
 
@@ -108,17 +108,17 @@ const styles = StyleSheet.create({
         backgroundColor: "transparent",
     },
     input: {
-        height: 45,
-        borderRadius: 8,
-        paddingHorizontal: 15,
+        height: 40,
+        borderRadius: 25,
+        paddingHorizontal: 10,
         backgroundColor: "#f0f0f0",
-        fontSize: 16,
+        fontSize: 13,
     },
     resultItem: {
         padding: 15,
         borderBottomWidth: 1,
         borderBottomColor: "#eee",
-        fontSize: 16,
+        fontSize: 13,
         color: "#333",
     },
 });

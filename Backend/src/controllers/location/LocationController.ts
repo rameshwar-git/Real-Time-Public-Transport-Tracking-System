@@ -4,6 +4,7 @@ import DriverLocationModel from '@/models/location/DriverLocation';
 import DriverModel from '@/models/users/UserDriverModel';
 import PassengerModel from '@/models/users/UserPassengerModel';
 import { AuthRequest } from "@/middleware/verifyToken";
+import { getNearestNUsers } from '@/utils/geometry';
 
 // Creating new location entry specifically for Passengers
 export const createPassengerLocation = async (req: Request, res: Response) => {
@@ -83,7 +84,14 @@ export const updateDriverLocation = async (req: AuthRequest, res: Response) => {
 // Get all passenger locations
 export const getAllPassengerLocations = async (req: Request, res: Response) => {
     try {
-        const allLocation = await PassengerLocationModel.find({}).select("userId currentLocation destination status -_id").lean();
+        const { lat, lng } = req.query;
+        let allLocation = await PassengerLocationModel.find({}).select("userId currentLocation destination status -_id").lean();
+        
+        if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
+            const origin = { latitude: Number(lat), longitude: Number(lng) };
+            allLocation = getNearestNUsers(allLocation as any, origin, 20);
+        }
+
         return res.status(200).json(allLocation);
     } catch (err: any) {
         res.status(500).json(err.message);
@@ -93,7 +101,14 @@ export const getAllPassengerLocations = async (req: Request, res: Response) => {
 // Get all driver locations
 export const getAllDriverLocations = async (req: Request, res: Response) => {
     try {
-        const allLocation = await DriverLocationModel.find({}).select("userId currentLocation vehicleId destination status -_id").lean();
+        const { lat, lng } = req.query;
+        let allLocation = await DriverLocationModel.find({}).select("userId currentLocation vehicleId destination status -_id").lean();
+
+        if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
+            const origin = { latitude: Number(lat), longitude: Number(lng) };
+            allLocation = getNearestNUsers(allLocation as any, origin, 20);
+        }
+
         return res.status(200).json(allLocation);
     } catch (err: any) {
         res.status(500).json(err.message);
