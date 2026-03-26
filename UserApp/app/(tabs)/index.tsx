@@ -1,17 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Platform, Dimensions, Button, TouchableOpacity, } from "react-native";
+import { View, Text, StyleSheet, Platform, Dimensions, Button, TouchableOpacity, KeyboardAvoidingView, } from "react-native";
 import { useLiveLocations } from "@/hooks/location/useLiveLocations";
 import { useLocationSharing } from "@/hooks/location/useLocationSharing";
 import { getUserId } from "@/services/storageService";
 import { MapViewComponent } from "@components/map/MapViewComponent";
-import { DestinationSearch } from "@components/map/DestinationSearch";
+import { LocationSearchBox } from "@/components/map/LocationSearchBox";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { requestPermission, reverseGeocode, getCurrentLocation } from "@/services/locationServices";
 import { socket } from "@/services/socket";
 import { getDistance, calculateRouteMatch, findNearestUser } from "@/utils/geometry";
 
 export default function App() {
-    const { locations } = useLiveLocations();
     const [userId, setUserId] = useState<string | null>(null);
     const [mapRegion, setMapRegion] = useState<any>({
         latitude: 15,
@@ -23,6 +22,10 @@ export default function App() {
     const [origin, setOrigin] = useState<any>(null);
     const [originText, setOriginText] = useState<string>("");
     const [isConfirmed, setIsConfirmed] = useState<boolean>(false);
+    
+    // Fetch live locations based on current origin
+    const { locations } = useLiveLocations(origin);
+
     const [assignedDriverId, setAssignedDriverId] = useState<string | null>(null);
     const [mapComponents, setMapComponents] = useState<any>(null);
     const mapRef = useRef<any>(null);
@@ -40,6 +43,16 @@ export default function App() {
                 MapView: Maps.default || Maps.MapView || Maps,
                 Marker: Maps.Marker,
             });
+            const handleOriginSelect = (coords: any) => {
+                setOrigin({
+                    latitude: coords.lat,
+                    longitude: coords.lng,
+                });
+                mapRef.current?.animateToRegion(
+                    { latitude: coords.lat, longitude: coords.lng, latitudeDelta: 0.007, longitudeDelta: 0.007 },
+                    700
+                );
+            }
         }
     }, []);
 
@@ -92,7 +105,7 @@ export default function App() {
             if (!u.vehicleId || !u.currentLocation || !u.destination) return false;
 
             const match = calculateRouteMatch(u.currentLocation, u.destination, origin, destination);
-            
+
             // If driver is far from pickup (> 50km), ignore them
             if (match.pickupDist > 50) return false;
 
@@ -131,77 +144,62 @@ export default function App() {
 
     return (
         <SafeAreaView style={{ flex: 1 }}>
-            <View style={styles.container}>
-                {!isConfirmed && (
-                    <View style={styles.searchCard}>
-                        <DestinationSearch
-                            placeholder="Current Location"
-                            initialQuery={originText}
-                            style={styles.originInput}
-                            onSelect={(coords: any) => {
-                                setOrigin({
-                                    latitude: coords.lat,
-                                    longitude: coords.lng,
-                                });
-                                mapRef.current?.animateToRegion(
-                                    { latitude: coords.lat, longitude: coords.lng, latitudeDelta: 0.007, longitudeDelta: 0.007 },
-                                    700
-                                );
-                            }}
-                        />
-                        <View style={styles.divider} />
-                        <DestinationSearch
-                            placeholder="Where to?"
-                            style={styles.destInput}
-                            onSelect={(coords: any) => {
-                                const destinationCoords = {
-                                    latitude: coords.lat,
-                                    longitude: coords.lng,
-                                };
-                                setDestination(destinationCoords);
-                                mapRef.current?.animateToRegion(
-                                    { ...destinationCoords, latitudeDelta: 0.007, longitudeDelta: 0.007 },
-                                    700
-                                );
-                            }}
+            <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+                <View style={styles.container}>
+                    {!isConfirmed && (
+                        <View style={styles.searchCard}>
+                            <LocationSearchBox
+                                placeholder="Destination"
+                                onSelect={(coords: any) => {
+                                    const destinationCoords = {
+                                        latitude: coords.lat,
+                                        longitude: coords.lng,
+                                    };
+                                    setDestination(destinationCoords);
+                                    mapRef.current?.animateToRegion(
+                                        { ...destinationCoords, latitudeDelta: 0.007, longitudeDelta: 0.007 },
+                                        700
+                                    );
+                                }}
+                            />
+                        </View>
+                    )}
+
+                    <View style={{ height: mapHeight }}>
+                        <MapViewComponent
+                            MapView={MapView}
+                            Marker={Marker}
+                            mapRegion={mapRegion}
+                            setMapRegion={setMapRegion}
+                            locations={locations}
+                            currentUserId={userId}
+                            destination={destination}
+                            origin={origin}
+                            mapRef={mapRef}
+                            isConfirmed={isConfirmed}
+                            assignedDriverId={assignedDriverId}
                         />
                     </View>
-                )}
 
-                <View style={{ height: mapHeight }}>
-                    <MapViewComponent
-                        MapView={MapView}
-                        Marker={Marker}
-                        mapRegion={mapRegion}
-                        setMapRegion={setMapRegion}
-                        locations={locations}
-                        currentUserId={userId}
-                        destination={destination}
-                        origin={origin}
-                        mapRef={mapRef}
-                        isConfirmed={isConfirmed}
-                        assignedDriverId={assignedDriverId}
-                    />
+                    {/* BOTTOM UI STATES */}
+                    {destination && !isConfirmed && (
+                        <View style={styles.bottomView}>
+                            <TouchableOpacity style={styles.btn} onPress={handleConfirmRide}>
+                                <Text style={styles.btnText}>Confirm Ride</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {isConfirmed && (
+                        <View style={styles.bottomView}>
+                            <Text style={styles.searchingText}>Looking for drivers nearby...</Text>
+                            <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setIsConfirmed(false)}>
+                                <Text style={styles.btnText}>Cancel Search</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
-
-                {/* BOTTOM UI STATES */}
-                {destination && !isConfirmed && (
-                    <View style={styles.bottomView}>
-                        <TouchableOpacity style={styles.btn} onPress={handleConfirmRide}>
-                            <Text style={styles.btnText}>Confirm Ride</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                {isConfirmed && (
-                    <View style={styles.bottomView}>
-                        <Text style={styles.searchingText}>Looking for drivers nearby...</Text>
-                        <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setIsConfirmed(false)}>
-                            <Text style={styles.btnText}>Cancel Search</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-            </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -211,24 +209,21 @@ const styles = StyleSheet.create({
 
     searchCard: {
         position: 'absolute',
-        top: Platform.OS === 'ios' ? 50 : 20,
-        left: 15,
-        right: 15,
+        top: Platform.OS === 'ios' ? 50 : 5,
+        left: 5,
+        right: 5,
         backgroundColor: '#fff',
-        borderRadius: 12,
+        borderRadius: 15,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
         shadowRadius: 5,
-        elevation: 5,
+        elevation: 2,
         zIndex: 10,
-        padding: 10,
+        padding: 8,
     },
     originInput: {
         marginBottom: 5,
-    },
-    destInput: {
-        marginTop: 5,
     },
     divider: {
         height: 1,
@@ -243,9 +238,8 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         backgroundColor: "#fff",
-        padding: 20,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        padding: 10,
+        borderRadius: 15,
         elevation: 10,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -2 },

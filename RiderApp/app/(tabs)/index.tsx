@@ -10,7 +10,6 @@ import { requestPermission, getCurrentLocation } from "@/services/locationServic
 import { socket } from "@/services/socket";
 
 export default function DriverDashboard() {
-    const { locations } = useLiveLocations();
     const [userId, setUserId] = useState<string | null>(null);
     const [mapRegion, setMapRegion] = useState<any>({
         latitude: 15,
@@ -21,6 +20,9 @@ export default function DriverDashboard() {
 
     // Driver States
     const [origin, setOrigin] = useState<any>(null);
+
+    // Fetch live locations based on current origin
+    const { locations } = useLiveLocations(origin);
     const [destination, setDestination] = useState<any>(null);
     const [isOnDuty, setIsOnDuty] = useState<boolean>(false);
     const [passengerRequest, setPassengerRequest] = useState<any>(null);

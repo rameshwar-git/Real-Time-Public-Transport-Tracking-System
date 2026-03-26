@@ -1,7 +1,7 @@
 import { env } from "@/config/env";
 
 const API_BASE = env.API_URL;
-export const fetchAllLocations = async (token?: string | null) => {
+export const fetchAllLocations = async (token?: string | null, origin?: { latitude: number, longitude: number } | null) => {
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
     };
@@ -9,7 +9,12 @@ export const fetchAllLocations = async (token?: string | null) => {
         headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${API_BASE}/passenger/location/all`, {
+    let url = `${API_BASE}/passenger/location/all`;
+    if (origin) {
+        url += `?lat=${origin.latitude}&lng=${origin.longitude}`;
+    }
+
+    const res = await fetch(url, {
         headers
     });
 
