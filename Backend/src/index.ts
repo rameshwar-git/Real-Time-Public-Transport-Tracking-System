@@ -18,7 +18,7 @@ app.use(express.json());
 
 app.use('/api', passengerRoutes);
 app.use('/api', driverRoutes);
-app.use('/api/', locationRoutes);
+app.use('/api', locationRoutes);
 app.use('/api', tripRoutes);
 
 
