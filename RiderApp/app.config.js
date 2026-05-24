@@ -13,7 +13,7 @@ export default {
 
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.admin.dev.justintime",
+      bundleIdentifier: "com.admin.dev.justintime.rider",
       config: {
         googleMaps: {
           apiKey: process.env.GOOGLE_MAPS_API_KEY
@@ -25,7 +25,7 @@ export default {
     },
 
     android: {
-      package: "com.admin.dev.justintime",
+      package: "com.admin.dev.justintime.rider",
       config: {
         googleMaps: {
           apiKey: process.env.GOOGLE_MAPS_API_KEY

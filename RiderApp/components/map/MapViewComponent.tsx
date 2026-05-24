@@ -4,7 +4,7 @@ import {UserLocation} from "@/types/map";
 import {Region} from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import {env} from "@/config/env";
-import {getDistance, getNearestNUsers} from "@/utils/geometry";
+import {getDistance, getNearestNUsers, calculateRouteMatch} from "@/utils/geometry";
 
 type Props = {
     MapView: any;
@@ -17,7 +17,7 @@ type Props = {
     origin: any;
     mapRef: any;
     isConfirmed?: boolean;
-    assignedPassengerId?: string | null;
+    activeTrips?: any[];
     isOnDuty?: boolean;
 };
 
@@ -33,7 +33,7 @@ export const MapViewComponent: React.FC<Props> = (
         origin,
         mapRef,
         isConfirmed,
-        assignedPassengerId,
+        activeTrips,
         isOnDuty
     }) => {
     if (!MapView || !mapRegion) return null;
@@ -56,38 +56,74 @@ export const MapViewComponent: React.FC<Props> = (
                 if (!origin) return null;
 
                 // Stop rendering passengers if the driver is offline.
-                if (!isOnDuty && !assignedPassengerId) return null;
+                if (!isOnDuty && (!activeTrips || activeTrips.length === 0)) return null;
 
                 if (!Array.isArray(locations)) return null;
 
-                const passengers = locations.filter((u: any) => 
-                    u.currentLocation && 
-                    u.userId !== currentUserId && 
-                    !u.vehicleId && u.status === 'confirmed'
-                );
+                const passengers = locations.filter((u: any) => {
+                    if (!u.currentLocation || u.userId === currentUserId || !!u.vehicleId || (u.status !== 'confirmed' && u.status !== 'active')) {
+                        return false;
+                    }
+                    
+                    if (destination && typeof destination.latitude === 'number' && typeof destination.longitude === 'number' && u.destination && typeof u.destination.latitude === 'number' && typeof u.destination.longitude === 'number' && u.currentLocation && typeof u.currentLocation.latitude === 'number' && typeof u.currentLocation.longitude === 'number') {
+                        try {
+                            const match = calculateRouteMatch(origin, destination, u.currentLocation, u.destination);
+                            if (match.pickupDist > 2) return false;
+                            return match.isMatch;
+                        } catch (e) {
+                            return false;
+                        }
+                    }
+                    return true;
+                });
 
                 const nearestPassengers = getNearestNUsers(passengers, origin, 5);
 
-                if (assignedPassengerId) {
-                    const assignedIsIncluded = nearestPassengers.some(p => p.userId === assignedPassengerId);
-                    if (!assignedIsIncluded) {
-                        const assignedPassenger = passengers.find(p => p.userId === assignedPassengerId);
-                        if (assignedPassenger) {
-                            const dist = getDistance(origin.latitude, origin.longitude, assignedPassenger.currentLocation!.latitude, assignedPassenger.currentLocation!.longitude);
-                            nearestPassengers.push({ ...assignedPassenger, dist });
-                        }
-                    }
+                let activeTripPassengers: any[] = [];
+                if (activeTrips && activeTrips.length > 0) {
+                    activeTripPassengers = activeTrips.map(t => ({
+                        userId: t.passengerId,
+                        currentLocation: t.status === 'scheduled' ? t.origin : null,
+                    })).filter(u => u.currentLocation !== null);
                 }
 
-                return nearestPassengers.map((u: any) => (
-                    <Marker 
-                        key={u.userId || u._id} 
-                        coordinate={u.currentLocation} 
-                        image={require("@assets/map/passenger.png")} 
-                    />
-                ));
+                const drivers = locations.filter((u: any) => u.currentLocation && u.userId !== currentUserId && !!u.vehicleId);
+
+                return [
+                    ...nearestPassengers.map((u: any) => {
+                        if (!u.currentLocation || typeof u.currentLocation.latitude !== 'number' || typeof u.currentLocation.longitude !== 'number' || isNaN(u.currentLocation.latitude) || isNaN(u.currentLocation.longitude)) return null;
+                        return (
+                            <Marker 
+                                key={`p_${u.userId || u._id}`} 
+                                coordinate={u.currentLocation} 
+                                image={require("@assets/map/passenger.png")} 
+                            />
+                        );
+                    }).filter(Boolean),
+                    ...activeTripPassengers.map((u: any) => {
+                        if (!u.currentLocation || typeof u.currentLocation.latitude !== 'number' || typeof u.currentLocation.longitude !== 'number' || isNaN(u.currentLocation.latitude) || isNaN(u.currentLocation.longitude)) return null;
+                        return (
+                            <Marker 
+                                key={`act_${u.userId}`} 
+                                coordinate={u.currentLocation} 
+                                image={require("@assets/map/passenger.png")} 
+                            />
+                        );
+                    }).filter(Boolean),
+                    ...drivers.map((u: any) => {
+                        if (!u.currentLocation || typeof u.currentLocation.latitude !== 'number' || typeof u.currentLocation.longitude !== 'number' || isNaN(u.currentLocation.latitude) || isNaN(u.currentLocation.longitude)) return null;
+                        const isTricycle = u.vehicleId && u.vehicleId.vehicleType === 'tricycle';
+                        return (
+                            <Marker 
+                                key={`d_${u.userId || u._id}`} 
+                                coordinate={u.currentLocation} 
+                                image={isTricycle ? require("@assets/map/tricycle.png") : require("@assets/map/bus.png")} 
+                            />
+                        );
+                    }).filter(Boolean)
+                ];
             })()}
-            {origin && destination && (
+            {origin && typeof origin.latitude === 'number' && typeof origin.longitude === 'number' && !isNaN(origin.latitude) && !isNaN(origin.longitude) && destination && typeof destination.latitude === 'number' && typeof destination.longitude === 'number' && !isNaN(destination.latitude) && !isNaN(destination.longitude) && (
                 <MapViewDirections
                     origin={origin}
                     destination={destination}
@@ -99,7 +135,7 @@ export const MapViewComponent: React.FC<Props> = (
                     }}
                 />
             )}
-            {destination && (
+            {destination && typeof destination.latitude === 'number' && typeof destination.longitude === 'number' && !isNaN(destination.latitude) && !isNaN(destination.longitude) && (
                 <Marker
                     coordinate={destination}
                     title="Destination"

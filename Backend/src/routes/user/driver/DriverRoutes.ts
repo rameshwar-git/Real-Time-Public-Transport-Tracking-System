@@ -1,5 +1,14 @@
 import express from "express";
-import { createDriver, setDriverVehicle, validateDriverLogin, validateDriver } from "@/controllers/user/DriverController";
+import { 
+    createDriver, 
+    setDriverVehicle, 
+    validateDriverLogin, 
+    validateDriver, 
+    getDriverEarnings, 
+    getWeeklyEarnings,
+    getDriverProfile,
+    updateDriverProfile
+} from "@/controllers/user/DriverController";
 import { verifyToken } from "@/middleware/verifyToken";
 
 const router = express.Router();
@@ -13,5 +22,15 @@ router.put("/drivers/vehicles/:driverId", verifyToken, setDriverVehicle);
 
 //validate driver token
 router.get("/drivers/validate", verifyToken, validateDriver);
+
+//get driver earnings
+router.get("/drivers/earnings", verifyToken, getDriverEarnings);
+
+//get weekly earnings breakdown
+router.get("/drivers/weekly-earnings", verifyToken, getWeeklyEarnings);
+
+// Profile
+router.get("/drivers/profile", verifyToken, getDriverProfile);
+router.put("/drivers/profile", verifyToken, updateDriverProfile);
 
 export default router;

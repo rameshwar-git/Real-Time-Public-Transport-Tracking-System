@@ -61,7 +61,7 @@ export const calculateRouteMatch = (
     const isRouteMatch = totalDetourDist <= (driverRouteDist * 1.5);
 
     return {
-        isMatch: destinationMatchPercentage >= 80 || isRouteMatch,
+        isMatch: destinationMatchPercentage >= 70 || isRouteMatch,
         percentage: destinationMatchPercentage,
         detourDist: totalDetourDist,
         pickupDist: distToPassenger

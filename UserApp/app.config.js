@@ -25,7 +25,7 @@ export default {
     },
 
     android: {
-      package: "com.admin.dev.justintime",
+      package: "com.admin.dev.justintime.user",
       config: {
         googleMaps: {
           apiKey: process.env.GOOGLE_MAPS_API_KEY

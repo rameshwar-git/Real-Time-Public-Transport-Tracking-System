@@ -4,6 +4,7 @@ import { getPlacePredictions } from "@/hooks/location/getPlacePredictions";
 import { getPlaceDetails } from "@/hooks/location/getPlaceDetails";
 import { getCurrentLocation } from "@/services/locationServices";
 import LocationSearchInput from "@ui/LocationSearchInput";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
 interface PlacePrediction {
@@ -25,6 +26,32 @@ interface Cord {
 export const LocationSearchBox: React.FC<Props> = ({ onSelect, placeholder = "Search destination", style, initialQuery = "" }) => {
     const [query, setQuery] = useState<string>(initialQuery);
     const [results, setResults] = useState<PlacePrediction[]>([]);
+    const [recentSearches, setRecentSearches] = useState<PlacePrediction[]>([]);
+
+    useEffect(() => {
+        const loadRecent = async () => {
+            try {
+                const stored = await AsyncStorage.getItem('@recent_searches');
+                if (stored) {
+                    setRecentSearches(JSON.parse(stored));
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        loadRecent();
+    }, []);
+
+    const saveRecentSearch = async (item: PlacePrediction) => {
+        try {
+            let updated = [item, ...recentSearches.filter(s => s.place_id !== item.place_id)];
+            if (updated.length > 5) updated = updated.slice(0, 5);
+            setRecentSearches(updated);
+            await AsyncStorage.setItem('@recent_searches', JSON.stringify(updated));
+        } catch (e) {
+            console.error(e);
+        }
+    };
 
     useEffect(() => {
         if (initialQuery) {
@@ -66,6 +93,7 @@ export const LocationSearchBox: React.FC<Props> = ({ onSelect, placeholder = "Se
     const handleSelect = async (item: PlacePrediction) => {
         setQuery(item.description);
         setResults([]);
+        saveRecentSearch(item);
         try {
             const coords = await getPlaceDetails(item.place_id);
             if (coords && onSelect) {
@@ -99,6 +127,24 @@ export const LocationSearchBox: React.FC<Props> = ({ onSelect, placeholder = "Se
                     )}
                 />
             )}
+            {query.length < 2 && recentSearches.length > 0 && (
+                <View>
+                    <Text style={styles.recentTitle}>Recent Searches</Text>
+                    <FlatList
+                        data={recentSearches}
+                        keyExtractor={(item) => item.place_id}
+                        keyboardShouldPersistTaps="handled"
+                        renderItem={({ item }) => (
+                            <Text
+                                style={styles.resultItem}
+                                onPress={() => handleSelect(item)}
+                            >
+                                🕒 {item.description}
+                            </Text>
+                        )}
+                    />
+                </View>
+            )}
         </View>
     );
 };
@@ -120,5 +166,14 @@ const styles = StyleSheet.create({
         borderBottomColor: "#eee",
         fontSize: 13,
         color: "#333",
+    },
+    recentTitle: {
+        paddingHorizontal: 15,
+        paddingTop: 10,
+        paddingBottom: 5,
+        fontSize: 14,
+        fontWeight: "bold",
+        color: "#666",
+        backgroundColor: "#f9f9f9",
     },
 });

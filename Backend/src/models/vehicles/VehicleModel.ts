@@ -6,6 +6,7 @@ const vehicleSchema = new Schema({
     vehicleModel: { type: String},
     vehicleNumber: { type: String, unique: true },
     capacity: { type: Number },
+    availableSeats: { type: Number },
     color: { type: String },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }

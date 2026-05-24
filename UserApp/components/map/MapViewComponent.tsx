@@ -52,40 +52,44 @@ export const MapViewComponent: React.FC<Props> = (
             provider={Platform.OS === "android" ? MapView.PROVIDER_GOOGLE : undefined}
         >
             {Array.isArray(locations) && locations.map((u: any) => {
-                if (!u.currentLocation) return null;
+                if (!u.currentLocation || typeof u.currentLocation.latitude !== 'number' || typeof u.currentLocation.longitude !== 'number' || isNaN(u.currentLocation.latitude) || isNaN(u.currentLocation.longitude)) return null;
                 if (u.userId === currentUserId) return null;
 
                 const isDriver = !!u.vehicleId;
+                const isActive = !!destination || isConfirmed;
 
-                // FILTERING LOGIC
-                if (!isDriver) return null; // Always hide simple passengers to keep map clean
+                if (!isDriver && !isActive) return null;
 
-                if (isConfirmed && assignedDriverId) {
-                    if (u.userId !== assignedDriverId) return null; // Isolate assigned driver
-                } else if (origin && destination && u.destination) {
-                    const match = calculateRouteMatch(u.currentLocation, u.destination, origin, destination);
-                    
-                    // If driver is far from the pickup (> 50km), ignore them
-                    if (match.pickupDist > 50) return null;
-
-                    if (!match.isMatch) return null;
-                } else if (origin && !destination) {
-                    // If passenger hasn't set destination, only show nearby drivers (within 1.5km)
-                    const dist = getDistance(origin.latitude, origin.longitude, u.currentLocation.latitude, u.currentLocation.longitude);
-                    if (dist > 1.5) return null;
+                if (isDriver) {
+                    if (isConfirmed && assignedDriverId) {
+                        if (u.userId !== assignedDriverId) return null;
+                    } else if (origin && destination && u.destination) {
+                        const match = calculateRouteMatch(u.currentLocation, u.destination, origin, destination);
+                        if (match.pickupDist > 2) return null;
+                        if (!match.isMatch) return null;
+                    } else if (origin && !destination && typeof origin.latitude === 'number' && typeof origin.longitude === 'number') {
+                        const dist = getDistance(origin.latitude, origin.longitude, u.currentLocation.latitude, u.currentLocation.longitude);
+                        if (dist > 2) return null;
+                    }
                 }
 
                 return (
                     <React.Fragment key={u.userId || u._id}>
                         <Marker
                             coordinate={u.currentLocation}
-                            image={isDriver ? require("@assets/map/bus.png") : require("@assets/map/passenger.png")}
+                            image={
+                                isDriver 
+                                    ? (u.vehicleId?.vehicleType === 'tricycle' 
+                                        ? require("@assets/map/tricycle.png") 
+                                        : require("@assets/map/bus.png")) 
+                                    : require("@assets/map/passenger.png")
+                            }
                         />
                     </React.Fragment>
                 );
 
             })}
-            {origin && destination && (
+            {origin && typeof origin.latitude === 'number' && typeof origin.longitude === 'number' && !isNaN(origin.latitude) && !isNaN(origin.longitude) && destination && typeof destination.latitude === 'number' && typeof destination.longitude === 'number' && !isNaN(destination.latitude) && !isNaN(destination.longitude) && (
                 <MapViewDirections
                     origin={origin}
                     destination={destination}
@@ -97,7 +101,7 @@ export const MapViewComponent: React.FC<Props> = (
                     }}
                 />
             )}
-            {destination && (
+            {destination && typeof destination.latitude === 'number' && typeof destination.longitude === 'number' && !isNaN(destination.latitude) && !isNaN(destination.longitude) && (
                 <Marker
                     coordinate={destination}
                     title="Destination"

@@ -30,7 +30,8 @@ export const createDriverLocation = async (req: Request, res: Response) => {
 export const updatePassengerLocation = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user!.id; // from verifyToken middleware
-        const { locationId, ...locationData } = req.body;
+        const { locationId } = req.params;
+        const locationData = req.body;
 
         // If not stored locally or skipped, fall back to fetching from user model
         let currentLocId = locationId;
@@ -39,7 +40,7 @@ export const updatePassengerLocation = async (req: AuthRequest, res: Response) =
             if (!passenger?.locationId) {
                 return res.status(404).json({ error: "Passenger or location not found" });
             }
-            currentLocId = passenger.locationId;
+            currentLocId = passenger.locationId.toString();
         }
 
         await PassengerLocationModel.findByIdAndUpdate(
@@ -62,17 +63,29 @@ export const updateDriverLocation = async (req: AuthRequest, res: Response) => {
         console.log("DRIVER UPDATE BODY:", req.body);
 
         let currentLocId = locationId;
+        let vehicleId = undefined;
+
+        const driver = await DriverModel.findById(userId).select('locationId');
+        if (!driver) {
+            return res.status(404).json({ error: "Driver not found" });
+        }
+
+        const VehicleModel = require('@/models/vehicles/VehicleModel').default;
+        const vehicle = await VehicleModel.findOne({ driverId: userId }).select('_id');
+        if (vehicle) {
+            vehicleId = vehicle._id;
+        }
+
         if (!currentLocId || currentLocId === "undefined" || currentLocId === "null") {
-            const driver = await DriverModel.findById(userId).select('locationId');
-            if (!driver?.locationId) {
-                return res.status(404).json({ error: "Driver or location not found" });
+            if (!driver.locationId) {
+                return res.status(404).json({ error: "Driver location not found" });
             }
             currentLocId = driver.locationId.toString();
         }
 
         await DriverLocationModel.findByIdAndUpdate(
             currentLocId,
-            { ...locationData, userId, timestamp: new Date() },
+            { ...locationData, userId, vehicleId, timestamp: new Date() },
             { new: true }
         );
         res.status(200).json({ 'Status': 'SUCCESS' });
@@ -86,7 +99,7 @@ export const getAllPassengerLocations = async (req: Request, res: Response) => {
     try {
         const { lat, lng } = req.query;
         let allLocation = await PassengerLocationModel.find({}).select("userId currentLocation destination status -_id").lean();
-        
+
         if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
             const origin = { latitude: Number(lat), longitude: Number(lng) };
             allLocation = getNearestNUsers(allLocation as any, origin, 20);
@@ -102,7 +115,10 @@ export const getAllPassengerLocations = async (req: Request, res: Response) => {
 export const getAllDriverLocations = async (req: Request, res: Response) => {
     try {
         const { lat, lng } = req.query;
-        let allLocation = await DriverLocationModel.find({}).select("userId currentLocation vehicleId destination status -_id").lean();
+        let allLocation = await DriverLocationModel.find({})
+            .select("userId currentLocation vehicleId destination status -_id")
+            .populate('vehicleId', 'vehicleType')
+            .lean();
 
         if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
             const origin = { latitude: Number(lat), longitude: Number(lng) };

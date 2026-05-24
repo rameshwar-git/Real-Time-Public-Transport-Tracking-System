@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Platform, Dimensions, TouchableOpacity, Alert } from "react-native";
+import { View, StyleSheet, Platform, Dimensions, TouchableOpacity, Alert, Text } from "react-native";
 import { useLiveLocations } from "@/hooks/location/useLiveLocations";
 import { useLocationSharing } from "@/hooks/location/useLocationSharing";
 import { getUserId } from "@/services/storageService";
@@ -8,6 +8,16 @@ import { DestinationSearch } from "@components/map/DestinationSearch";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { requestPermission, getCurrentLocation } from "@/services/locationServices";
 import { socket } from "@/services/socket";
+
+// Driver Hooks
+import { useDriverSocketEvents } from "@/hooks/driver/useDriverSocketEvents";
+import { useAutoDropoff } from "@/hooks/driver/useAutoDropoff";
+
+// Driver Components
+import { DriverStatusHeader } from "@/components/driver/DriverStatusHeader";
+import { IncomingRequestCard } from "@/components/driver/IncomingRequestCard";
+import { OtpVerificationModal } from "@/components/driver/OtpVerificationModal";
+import { ActiveTripsList } from "@/components/driver/ActiveTripsList";
 
 export default function DriverDashboard() {
     const [userId, setUserId] = useState<string | null>(null);
@@ -18,14 +28,17 @@ export default function DriverDashboard() {
         longitudeDelta: 30,
     });
 
-    // Driver States
     const [origin, setOrigin] = useState<any>(null);
-
-    // Fetch live locations based on current origin
     const { locations } = useLiveLocations(origin);
     const [destination, setDestination] = useState<any>(null);
     const [isOnDuty, setIsOnDuty] = useState<boolean>(false);
-    const [passengerRequest, setPassengerRequest] = useState<any>(null);
+    const [activeTrips, setActiveTrips] = useState<any[]>([]);
+    const [incomingRequest, setIncomingRequest] = useState<any>(null);
+    
+    const requestTimeoutRef = useRef<any>(null);
+    const [otpModalVisible, setOtpModalVisible] = useState(false);
+    const [currentOtpTrip, setCurrentOtpTrip] = useState<any>(null);
+    const [otpInput, setOtpInput] = useState('');
     const [mapComponents, setMapComponents] = useState<any>(null);
     const mapRef = useRef<any>(null);
 
@@ -62,52 +75,70 @@ export default function DriverDashboard() {
         initGPS();
     }, []);
 
-    // Broadcast live location without destination when offline
     useEffect(() => {
         if (userId && origin && !isOnDuty) {
             startSharing();
         }
-    }, [userId, origin, isOnDuty]);
+    }, [userId, origin, isOnDuty, startSharing]);
 
-    useEffect(() => {
-        if (!isOnDuty) {
-            setPassengerRequest(null);
-            return;
+    useDriverSocketEvents({
+        socket,
+        isOnDuty,
+        setIncomingRequest,
+        setActiveTrips,
+        requestTimeoutRef,
+        userId
+    });
+
+    useAutoDropoff({
+        socket,
+        origin,
+        activeTrips,
+        setActiveTrips
+    });
+
+    const handleAcceptRide = () => {
+        if (!incomingRequest) return;
+        if (requestTimeoutRef.current) clearTimeout(requestTimeoutRef.current);
+        
+        socket.emit("accept-ride", {
+            passengerId: incomingRequest.passengerId,
+            driverId: userId,
+            origin: incomingRequest.origin,
+            destination: incomingRequest.destination
+        });
+        
+        setIncomingRequest(null);
+
+        if (incomingRequest.origin) {
+            mapRef.current?.animateToRegion({
+                latitude: incomingRequest.origin.latitude,
+                longitude: incomingRequest.origin.longitude,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+            });
         }
+    };
 
-        socket.on("ride-assigned", (data: any) => {
-            Alert.alert("Ride Assigned!", "A passenger has booked a ride along your route. Rerouting to their pickup location.");
-            setPassengerRequest(data);
+    const handleRejectRide = () => {
+        if (!incomingRequest) return;
+        if (requestTimeoutRef.current) clearTimeout(requestTimeoutRef.current);
 
-            // Re-center map over the passenger's origin
-            if (data.origin) {
-                mapRef.current?.animateToRegion({
-                    latitude: data.origin.latitude,
-                    longitude: data.origin.longitude,
-                    latitudeDelta: 0.05,
-                    longitudeDelta: 0.05,
-                });
-            }
+        socket.emit("reject-ride", {
+            passengerId: incomingRequest.passengerId,
+            driverId: userId
         });
 
-        return () => {
-            socket.off("ride-assigned");
-        };
-    }, [isOnDuty]);
+        setIncomingRequest(null);
+    };
 
     const toggleDutyStatus = async () => {
         if (isOnDuty) {
             stopSharing();
             setIsOnDuty(false);
-            setPassengerRequest(null);
-            setDestination(null); // Clear route from map!
+            setActiveTrips([]);
+            setDestination(null);
             Alert.alert("Status Updated", "You are now Offline.");
-        } else if (!isOnDuty) {
-            startSharing();
-            setIsOnDuty(true);
-            setPassengerRequest(passengerRequest)
-            setDestination(destination);
-            Alert.alert("Status Updated", "You are now ONLINE and sharing your location.");
         } else {
             if (!destination) {
                 Alert.alert("Destination Required", "Please set your destination before going on duty.");
@@ -124,21 +155,41 @@ export default function DriverDashboard() {
         }
     };
 
+    const verifyOtp = () => {
+        if (!currentOtpTrip || !otpInput) return;
+        socket.emit("verify-otp", { tripId: currentOtpTrip.tripId, otp: otpInput });
+        
+        setActiveTrips(prev => prev.map(t => t.tripId === currentOtpTrip.tripId ? { ...t, status: 'in_progress' } : t));
+        setOtpModalVisible(false);
+        setOtpInput('');
+        setCurrentOtpTrip(null);
+    };
+
+    const handleCancelTrip = (trip: any) => {
+        Alert.alert("Cancel Trip", `Are you sure you want to cancel the trip for ${trip.passengerName}?`, [
+            { text: "No", style: "cancel" },
+            { text: "Yes", onPress: () => {
+                socket.emit('cancel-trip', { tripId: trip.tripId, canceledBy: 'driver' });
+                setActiveTrips(prev => prev.filter(t => t.tripId !== trip.tripId));
+            }, style: 'destructive' }
+        ]);
+    };
+
     const MapView = mapComponents?.MapView;
     const Marker = mapComponents?.Marker;
 
     return (
         <SafeAreaView style={{ flex: 1 }}>
             <View style={styles.container}>
-                {/* STATUS BAR TOP */}
-                <View style={styles.statusHeaderCard}>
-                    <Text style={styles.statusLabel}>Current Status:</Text>
-                    <Text style={[styles.statusText, { color: isOnDuty ? "#4CAF50" : "#F44336" }]}>
-                        {isOnDuty ? "ONLINE (ON DUTY)" : "OFFLINE"}
-                    </Text>
-                </View>
+                <DriverStatusHeader isOnDuty={isOnDuty} />
 
-                {/* SEARCH CARD */}
+                {incomingRequest && (
+                    <IncomingRequestCard 
+                        onAccept={handleAcceptRide} 
+                        onReject={handleRejectRide} 
+                    />
+                )}
+
                 {!isOnDuty && (
                     <View style={styles.searchCard}>
                         <DestinationSearch
@@ -159,7 +210,6 @@ export default function DriverDashboard() {
                     </View>
                 )}
 
-                {/* MAP VIEW */}
                 <View style={{ height: mapHeight }}>
                     <MapViewComponent
                         MapView={MapView}
@@ -168,16 +218,33 @@ export default function DriverDashboard() {
                         setMapRegion={setMapRegion}
                         locations={locations}
                         currentUserId={userId}
-                        destination={passengerRequest ? passengerRequest.origin : destination}
+                        destination={activeTrips.length > 0 ? (activeTrips.find(t => t.status === 'scheduled')?.origin || destination) : destination}
                         origin={origin}
                         mapRef={mapRef}
-                        assignedPassengerId={passengerRequest?.passengerId}
+                        activeTrips={activeTrips}
                         isOnDuty={isOnDuty}
                     />
                 </View>
 
-                {/* BOTTOM ACTION BUTTON */}
+                <OtpVerificationModal 
+                    visible={otpModalVisible}
+                    passengerName={currentOtpTrip?.passengerName || ''}
+                    otpInput={otpInput}
+                    setOtpInput={setOtpInput}
+                    onCancel={() => setOtpModalVisible(false)}
+                    onVerify={verifyOtp}
+                />
+
                 <View style={styles.bottomView}>
+                    <ActiveTripsList 
+                        activeTrips={activeTrips}
+                        onOpenOtp={(trip) => {
+                            setCurrentOtpTrip(trip);
+                            setOtpModalVisible(true);
+                        }}
+                        onCancelTrip={handleCancelTrip}
+                    />
+                    
                     <TouchableOpacity
                         style={[styles.btn, isOnDuty ? styles.offlineBtn : styles.onlineBtn]}
                         onPress={toggleDutyStatus}
@@ -214,34 +281,6 @@ const styles = StyleSheet.create({
         marginTop: 5,
     },
 
-    statusHeaderCard: {
-        position: 'absolute',
-        top: Platform.OS === 'ios' ? 60 : 30,
-        alignSelf: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 30,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 5,
-        elevation: 5,
-        zIndex: 10,
-    },
-    statusLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        marginRight: 8,
-        color: '#555',
-    },
-    statusText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-
     bottomView: {
         position: 'absolute',
         bottom: 0,
@@ -275,4 +314,3 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
     },
 });
-

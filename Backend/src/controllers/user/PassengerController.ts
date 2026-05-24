@@ -1,5 +1,8 @@
 import PassengerModel from '@/models/users/UserPassengerModel';
 import { Request, Response } from 'express';
+import { TripModel } from '@/models/trip/TripModel';
+import DriverModel from '@/models/users/UserDriverModel';
+import VehicleModel from '@/models/vehicles/VehicleModel';
 import { createPassengerLocation } from '@controllers/location/LocationController';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -113,5 +116,140 @@ export const validateUser = async (req: AuthRequest, res: Response) => {
 
   } catch (err: any) {
     return res.status(500).json(err.message);
+  }
+};
+
+export const getUpcomingRides = async (req: AuthRequest, res: Response) => {
+  try {
+    const passengerId = req.user!.id;
+
+    if (!passengerId) {
+      return res.status(400).json({ error: "Passenger ID is required" });
+    }
+
+    const upcomingTrips = await TripModel.find({
+      passengerId,
+      $or: [
+        { status: 'scheduled' },
+        { status: 'in_progress' }
+      ]
+    })
+      .populate('driverId', 'name')
+      .populate('vehicleId', 'model licensePlate')
+      .sort({ startDate: 1 })
+      .limit(10)
+      .lean();
+
+    const rides = upcomingTrips.map(trip => {
+      const startDate = new Date(trip.startDate);
+      const dayName = startDate.toLocaleDateString('en-US', { weekday: 'long' });
+      const isToday = new Date().toDateString() === startDate.toDateString();
+
+      return {
+        id: trip._id,
+        from: 'Start Location',
+        to: 'Destination',
+        date: isToday ? 'Today' : dayName,
+        time: startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        driver: (trip.driverId as any)?.name || 'Driver',
+        rating: 4.8,
+        vehicle: (trip.vehicleId as any)?.model ? `${(trip.vehicleId as any).model} - ${(trip.vehicleId as any).licensePlate}` : 'Vehicle',
+        status: trip.status === 'in_progress' ? 'confirmed' : 'scheduled'
+      };
+    });
+
+    return res.status(200).json(rides);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+export const getRecentRides = async (req: AuthRequest, res: Response) => {
+  try {
+    const passengerId = req.user!.id;
+
+    if (!passengerId) {
+      return res.status(400).json({ error: "Passenger ID is required" });
+    }
+
+    const completedTrips = await TripModel.find({
+      passengerId,
+      status: 'completed'
+    })
+      .sort({ endDate: -1 })
+      .limit(10)
+      .lean();
+
+    const rides = completedTrips.map(trip => {
+      const endDate = trip.endDate ? new Date(trip.endDate) : new Date();
+      return {
+        id: trip._id,
+        from: 'Start Location',
+        to: 'Destination',
+        date: endDate.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        fare: '₹120',
+        rating: trip.rating || 5
+      };
+    });
+
+    return res.status(200).json(rides);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+export const getPassengerStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const passengerId = req.user!.id;
+
+    if (!passengerId) {
+      return res.status(400).json({ error: "Passenger ID is required" });
+    }
+
+    const allTrips = await TripModel.find({ passengerId }).lean();
+    const completedTrips = allTrips.filter(trip => trip.status === 'completed');
+
+    const totalRides = allTrips.length;
+    const ratings = completedTrips.filter(trip => trip.rating).map(trip => trip.rating as number);
+    const averageRating = ratings.length > 0
+      ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length)
+      : 0;
+
+    const totalSpent = completedTrips.length * 120;
+
+    return res.status(200).json({
+      totalRides,
+      averageRating: Number(averageRating.toFixed(1)),
+      totalSpent
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+export const updatePassengerProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const updateData = req.body;
+
+    const updatedPassenger = await PassengerModel.findByIdAndUpdate(
+      userId,
+      { ...updateData, updatedAt: new Date() },
+      { new: true }
+    ).select('-password');
+
+    if (!updatedPassenger) {
+      return res.status(404).json({ error: "Passenger not found" });
+    }
+
+    return res.status(200).json({ message: "Profile updated successfully", data: updatedPassenger });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
 };
