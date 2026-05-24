@@ -11,8 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import ButtonComponent from '@/components/button';
-import { handleLogout } from '@/hooks/auth/auth';
+
 import { getDriverEarnings, getWeeklyEarnings } from '@/services/apiService';
 import { router } from 'expo-router';
 
@@ -286,10 +285,7 @@ export default function RiderDashboard() {
           </TouchableOpacity>
         </View>
 
-        {/* Logout Button */}
-        <View style={styles.buttonContainer}>
-          <ButtonComponent title="Logout" onPress={handleLogout} />
-        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -538,9 +534,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontWeight: '400',
   },
-  buttonContainer: {
-    marginTop: 12,
-  },
+
   center: {
     justifyContent: 'center',
     alignItems: 'center',

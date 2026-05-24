@@ -8,8 +8,8 @@ export interface ExtendedTrip extends Trip {
 }
 
 const TripSchema = new Schema<ExtendedTrip>({
-    passengerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    driverId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    passengerId: { type: Schema.Types.ObjectId, ref: 'Passenger', required: true },
+    driverId: { type: Schema.Types.ObjectId, ref: 'Driver', required: true },
     vehicleId: { type: Schema.Types.ObjectId, ref: 'Vehicle', required: true },
     passengerName: { type: String },
     otp: { type: String },

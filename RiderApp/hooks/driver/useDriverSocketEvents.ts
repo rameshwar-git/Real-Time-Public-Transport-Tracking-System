@@ -56,16 +56,34 @@ export const useDriverSocketEvents = ({
             });
         };
 
+        const handleOtpVerified = (data: any) => {
+            setActiveTrips(prev => prev.map(t => 
+                t.tripId === data.tripId ? { ...t, status: 'in_progress' } : t
+            ));
+        };
+
+        const handleOtpFailed = (data: any) => {
+            // Revert the optimistic status update
+            setActiveTrips(prev => prev.map(t =>
+                t.tripId === data.tripId ? { ...t, status: 'scheduled' } : t
+            ));
+            Alert.alert("OTP Failed", data.message || "Invalid OTP. Please try again.");
+        };
+
         socket.on("ride-request", handleRideRequest);
         socket.on("trip-created", handleTripCreated);
         socket.on("trip-canceled", handleTripCanceled);
         socket.on("request-canceled", handleRequestCanceled);
+        socket.on("otp-verified", handleOtpVerified);
+        socket.on("otp-failed", handleOtpFailed);
 
         return () => {
             socket.off("ride-request", handleRideRequest);
             socket.off("trip-created", handleTripCreated);
             socket.off("trip-canceled", handleTripCanceled);
             socket.off("request-canceled", handleRequestCanceled);
+            socket.off("otp-verified", handleOtpVerified);
+            socket.off("otp-failed", handleOtpFailed);
             if (requestTimeoutRef.current) clearTimeout(requestTimeoutRef.current);
         };
     }, [isOnDuty, socket, setIncomingRequest, setActiveTrips, requestTimeoutRef, userId]);

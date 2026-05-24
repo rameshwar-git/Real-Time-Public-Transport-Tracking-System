@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import ButtonComponent from '@/components/button';
-import { handleLogout } from '@/hooks/auth/auth';
+
 import { getUpcomingRides, getRecentRides, getPassengerStats, getCurrentUser } from '@/services/apiService';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -75,9 +74,18 @@ export default function UserDashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData();
+
+      // Silent refreshing every 8 seconds to make the dashboard dynamic in real-time
+      const interval = setInterval(() => {
+        fetchDashboardData(true);
+      }, 8000);
+
+      return () => clearInterval(interval);
+    }, [])
+  );
 
   const onRefresh = () => {
     fetchDashboardData(true);
@@ -104,7 +112,8 @@ export default function UserDashboard() {
     );
   }
 
-  const currentRide = upcomingRides.find((ride) => ride.status === 'confirmed');
+  // Show current ride only when trip is in_progress (OTP verified) or confirmed
+  const currentRide = upcomingRides.find((ride) => ride.status === 'in_progress' || ride.status === 'confirmed');
 
   return (
     <SafeAreaView style={styles.container}>
@@ -171,13 +180,18 @@ export default function UserDashboard() {
           </View>
         </View>
 
-        {/* Current Ride */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Current Ride</Text>
-          </View>
+        {/* Current Ride — only shown when the rider has accepted the OTP */}
+        {currentRide ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Current Ride</Text>
+              <View style={[styles.statusBadge, styles.statusConfirmed]}>
+                <Text style={[styles.statusText, styles.statusTextConfirmed]}>
+                  {currentRide.status === 'in_progress' ? '🚗 In Progress' : 'Active'}
+                </Text>
+              </View>
+            </View>
 
-          {currentRide ? (
             <View style={styles.rideCard}>
               <View style={styles.rideHeader}>
                 <View style={styles.rideRoute}>
@@ -200,12 +214,6 @@ export default function UserDashboard() {
                     </Text>
                   </View>
                 </View>
-
-                <View style={[styles.statusBadge, styles.statusConfirmed]}>
-                  <Text style={[styles.statusText, styles.statusTextConfirmed]}>
-                    Active
-                  </Text>
-                </View>
               </View>
 
               <View style={styles.rideFooter}>
@@ -222,14 +230,19 @@ export default function UserDashboard() {
                 </TouchableOpacity>
               </View>
             </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <MaterialCommunityIcons name="car-connected" size={48} color="#D1D5DB" />
-              <Text style={styles.emptyText}>No current ride</Text>
-              <Text style={styles.emptyDesc}>Book a ride from the map to start your journey</Text>
+          </View>
+        ) : (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Current Ride</Text>
             </View>
-          )}
-        </View>
+            <View style={styles.emptyState}>
+              <MaterialCommunityIcons name="car-off" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyText}>No active ride</Text>
+              <Text style={styles.emptyDesc}>Book a ride to get started</Text>
+            </View>
+          </View>
+        )}
 
         {/* Recent Rides */}
         <View style={styles.section}>
@@ -342,10 +355,7 @@ export default function UserDashboard() {
           </TouchableOpacity>
         </View>
 
-        {/* Logout Button */}
-        <View style={styles.buttonContainer}>
-          <ButtonComponent title="Logout" onPress={handleLogout} />
-        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -653,9 +663,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     fontWeight: '400',
-  },
-  buttonContainer: {
-    marginTop: 12,
   },
   center: {
     justifyContent: 'center',

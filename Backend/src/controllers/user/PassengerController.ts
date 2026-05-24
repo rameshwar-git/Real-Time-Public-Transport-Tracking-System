@@ -214,8 +214,7 @@ export const getPassengerStats = async (req: AuthRequest, res: Response) => {
 
     const allTrips = await TripModel.find({ passengerId }).lean();
     const completedTrips = allTrips.filter(trip => trip.status === 'completed');
-
-    const totalRides = allTrips.length;
+    const totalRides = completedTrips.length;
     const ratings = completedTrips.filter(trip => trip.rating).map(trip => trip.rating as number);
     const averageRating = ratings.length > 0
       ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length)

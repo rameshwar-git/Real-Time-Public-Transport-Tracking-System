@@ -140,6 +140,12 @@ export default function initSocket(io:any) {
             if (passengerSocketId) {
                 io.to(passengerSocketId).emit("trip-started", { tripId });
             }
+
+            // Confirm to the driver that OTP was verified
+            socket.emit("otp-verified", { tripId, status: 'in_progress' });
+        } else {
+            // Notify the driver that OTP verification failed
+            socket.emit("otp-failed", { tripId, message: "Invalid OTP. Please try again." });
         }
     });
 

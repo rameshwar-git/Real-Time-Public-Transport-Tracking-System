@@ -25,9 +25,16 @@ export const ActiveTripsList = ({ activeTrips, onOpenOtp, onCancelTrip }: Active
                                 <Text style={styles.btnTextSmall}>Enter OTP</Text>
                             </TouchableOpacity>
                         )}
-                        <TouchableOpacity style={[styles.otpBtn, { backgroundColor: '#F44336', marginLeft: 8 }]} onPress={() => onCancelTrip(trip)}>
-                            <Text style={styles.btnTextSmall}>Cancel</Text>
-                        </TouchableOpacity>
+                        {trip.status === 'scheduled' && (
+                            <TouchableOpacity style={[styles.otpBtn, { backgroundColor: '#F44336', marginLeft: 8 }]} onPress={() => onCancelTrip(trip)}>
+                                <Text style={styles.btnTextSmall}>Cancel</Text>
+                            </TouchableOpacity>
+                        )}
+                        {trip.status === 'in_progress' && (
+                            <View style={[styles.otpBtn, { backgroundColor: '#4CAF50' }]}>
+                                <Text style={styles.btnTextSmall}>🚗 Trip Active</Text>
+                            </View>
+                        )}
                     </View>
                 </View>
             ))}

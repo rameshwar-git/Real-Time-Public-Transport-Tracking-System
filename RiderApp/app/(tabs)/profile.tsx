@@ -8,20 +8,24 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  TouchableOpacity
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ButtonComponent from '@/components/button';
 import { getDriverProfile, updateDriverProfile } from '@/services/apiService';
+import { handleLogout } from '@/hooks/auth/auth';
 
 export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
   const [driverData, setDriverData] = useState({
     name: '',
     phone: '',
-    email: '', // Disabled for edit
+    email: '',
   });
 
   const [vehicleData, setVehicleData] = useState({
@@ -31,6 +35,10 @@ export default function ProfileScreen() {
     capacity: '4',
   });
 
+  // Store original data so we can revert on cancel
+  const [originalDriverData, setOriginalDriverData] = useState(driverData);
+  const [originalVehicleData, setOriginalVehicleData] = useState(vehicleData);
+
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -39,19 +47,23 @@ export default function ProfileScreen() {
     try {
       const res = await getDriverProfile();
       if (res.driver) {
-        setDriverData({
+        const d = {
           name: res.driver.name || '',
           phone: res.driver.phone || '',
           email: res.driver.email || '',
-        });
+        };
+        setDriverData(d);
+        setOriginalDriverData(d);
       }
       if (res.vehicle) {
-        setVehicleData({
+        const v = {
           vehicleType: res.vehicle.vehicleType || '',
           vehicleModel: res.vehicle.vehicleModel || '',
           vehicleNumber: res.vehicle.vehicleNumber || '',
           capacity: res.vehicle.capacity ? String(res.vehicle.capacity) : '4',
-        });
+        };
+        setVehicleData(v);
+        setOriginalVehicleData(v);
       }
     } catch (err) {
       Alert.alert('Error', 'Failed to load profile data');
@@ -60,9 +72,26 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleEnableEdit = () => {
+    Alert.alert(
+      'Edit Profile',
+      'Are you sure you want to update your profile?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Yes, Edit', onPress: () => setIsEditing(true) },
+      ]
+    );
+  };
+
+  const handleCancelEdit = () => {
+    setDriverData(originalDriverData);
+    setVehicleData(originalVehicleData);
+    setIsEditing(false);
+  };
+
   const handleSave = async () => {
-    if (!driverData.name || !driverData.phone) {
-      Alert.alert('Error', 'Name and Phone are required.');
+    if (!driverData.phone) {
+      Alert.alert('Error', 'Phone is required.');
       return;
     }
     if (!vehicleData.vehicleType || !vehicleData.vehicleNumber) {
@@ -70,24 +99,39 @@ export default function ProfileScreen() {
       return;
     }
 
-    setSaving(true);
-    try {
-      await updateDriverProfile({
-        driverData: {
-          name: driverData.name,
-          phone: driverData.phone,
+    Alert.alert(
+      'Confirm Changes',
+      'Are you sure you want to save these changes?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Save',
+          onPress: async () => {
+            setSaving(true);
+            try {
+              await updateDriverProfile({
+                driverData: {
+                  name: driverData.name,
+                  phone: driverData.phone,
+                },
+                vehicleData: {
+                  ...vehicleData,
+                  capacity: parseInt(vehicleData.capacity, 10) || 4
+                }
+              });
+              setOriginalDriverData(driverData);
+              setOriginalVehicleData(vehicleData);
+              setIsEditing(false);
+              Alert.alert('Success', 'Profile updated successfully!');
+            } catch (err) {
+              Alert.alert('Error', 'Failed to update profile');
+            } finally {
+              setSaving(false);
+            }
+          },
         },
-        vehicleData: {
-          ...vehicleData,
-          capacity: parseInt(vehicleData.capacity, 10) || 4
-        }
-      });
-      Alert.alert('Success', 'Profile updated successfully!');
-    } catch (err) {
-      Alert.alert('Error', 'Failed to update profile');
-    } finally {
-      setSaving(false);
-    }
+      ]
+    );
   };
 
   if (loading) {
@@ -111,7 +155,9 @@ export default function ProfileScreen() {
               <MaterialCommunityIcons name="account-circle" size={80} color="#10B981" />
             </View>
             <Text style={styles.greeting}>{driverData.name || 'Driver'}</Text>
-            <Text style={styles.subtitle}>Update your personal and vehicle details</Text>
+            <Text style={styles.subtitle}>
+              {isEditing ? 'Editing your profile' : 'View your personal and vehicle details'}
+            </Text>
           </View>
 
           {/* Personal Information */}
@@ -119,22 +165,29 @@ export default function ProfileScreen() {
             <View style={styles.sectionHeader}>
               <MaterialCommunityIcons name="card-account-details-outline" size={24} color="#1F2937" />
               <Text style={styles.sectionTitle}>Personal Details</Text>
+              {!isEditing && (
+                <TouchableOpacity style={styles.editBadge} onPress={handleEnableEdit}>
+                  <MaterialCommunityIcons name="pencil" size={14} color="#10B981" />
+                  <Text style={styles.editBadgeText}>Edit</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             <Text style={styles.label}>Full Name</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, styles.disabledInput]}
               value={driverData.name}
-              onChangeText={(text) => setDriverData({ ...driverData, name: text })}
+              editable={false}
               placeholder="John Doe"
               placeholderTextColor="#9CA3AF"
             />
 
             <Text style={styles.label}>Phone Number</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !isEditing && styles.disabledInput]}
               value={driverData.phone}
               onChangeText={(text) => setDriverData({ ...driverData, phone: text })}
+              editable={isEditing}
               keyboardType="phone-pad"
               placeholder="+1234567890"
               placeholderTextColor="#9CA3AF"
@@ -157,7 +210,7 @@ export default function ProfileScreen() {
             </View>
 
             <Text style={styles.label}>Vehicle Type</Text>
-            <View style={styles.typeSelector}>
+            <View style={[styles.typeSelector, !isEditing && { opacity: 0.6 }]}>
               {['tricycle', 'bus'].map((type) => (
                 <Text
                   key={type}
@@ -165,7 +218,7 @@ export default function ProfileScreen() {
                     styles.typeOption,
                     vehicleData.vehicleType === type && styles.typeOptionSelected
                   ]}
-                  onPress={() => setVehicleData({ ...vehicleData, vehicleType: type })}
+                  onPress={() => isEditing && setVehicleData({ ...vehicleData, vehicleType: type })}
                 >
                   {type.charAt(0).toUpperCase() + type.slice(1)}
                 </Text>
@@ -174,18 +227,20 @@ export default function ProfileScreen() {
 
             <Text style={styles.label}>Vehicle Model</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !isEditing && styles.disabledInput]}
               value={vehicleData.vehicleModel}
               onChangeText={(text) => setVehicleData({ ...vehicleData, vehicleModel: text })}
+              editable={isEditing}
               placeholder="e.g. Honda Civic, Bajaj RE"
               placeholderTextColor="#9CA3AF"
             />
 
             <Text style={styles.label}>Vehicle Number (Plate)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !isEditing && styles.disabledInput]}
               value={vehicleData.vehicleNumber}
               onChangeText={(text) => setVehicleData({ ...vehicleData, vehicleNumber: text })}
+              editable={isEditing}
               placeholder="e.g. MH12 AB 1234"
               placeholderTextColor="#9CA3AF"
               autoCapitalize="characters"
@@ -193,19 +248,37 @@ export default function ProfileScreen() {
 
             <Text style={styles.label}>Seating Capacity</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !isEditing && styles.disabledInput]}
               value={vehicleData.capacity}
               onChangeText={(text) => setVehicleData({ ...vehicleData, capacity: text })}
+              editable={isEditing}
               keyboardType="number-pad"
               placeholder="e.g. 4"
               placeholderTextColor="#9CA3AF"
             />
           </View>
 
-          <View style={styles.buttonContainer}>
+          {isEditing && (
+            <View style={styles.editActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelEdit}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+                onPress={handleSave}
+                disabled={saving}
+              >
+                <Text style={styles.saveBtnText}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <View style={styles.logoutContainer}>
             <ButtonComponent 
-              title={saving ? "Saving..." : "Save Changes"} 
-              onPress={handleSave} 
+              title="Logout" 
+              onPress={handleLogout} 
             />
           </View>
         </ScrollView>
@@ -278,6 +351,23 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#111827',
+    flex: 1,
+  },
+  editBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  editBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#10B981',
   },
   label: {
     fontSize: 13,
@@ -322,7 +412,39 @@ const styles = StyleSheet.create({
     borderColor: '#10B981',
     color: '#10B981',
   },
-  buttonContainer: {
-    marginTop: 10,
-  }
+  editActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  saveBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+  },
+  saveBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  logoutContainer: {
+    marginTop: 8,
+    marginBottom: 10,
+  },
 });
