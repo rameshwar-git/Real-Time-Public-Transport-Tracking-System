@@ -1,6 +1,6 @@
 import { Tabs, router } from "expo-router";
 import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useState } from "react";
 import { connectSocket, disconnectSocket } from "@/services/socket";
 import { AppState, View, ActivityIndicator, Platform } from "react-native";
@@ -70,12 +70,12 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarActiveTintColor: "#4F46E5", // Premium Royal Indigo active
-        tabBarInactiveTintColor: "#94A3B8", // Clean slate inactive
+        tabBarActiveTintColor: "#090df3ff", // Rich emerald green active
+        tabBarInactiveTintColor: "#64748B", // Clean slate inactive
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
+          backgroundColor: "#1E293B",
           borderTopWidth: 1,
-          borderTopColor: "#E2E8F0",
+          borderTopColor: "#334155",
           height: Platform.OS === 'ios' ? 88 : 68,
           paddingBottom: Platform.OS === 'ios' ? 28 : 12,
           paddingTop: 8,
@@ -87,7 +87,7 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="house.fill" color={color} />
+            <Ionicons size={28} name="home" color={color} />
           ),
         }}
       />
@@ -96,7 +96,7 @@ export default function TabLayout() {
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="paperplane.fill" color={color} />
+            <Ionicons size={28} name="paper-plane" color={color} />
           ),
         }}
       />
@@ -105,7 +105,7 @@ export default function TabLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person.fill" color={color} />
+            <Ionicons size={28} name="person" color={color} />
           ),
         }}
       />

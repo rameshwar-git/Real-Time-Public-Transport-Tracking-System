@@ -29,11 +29,10 @@ export const getCurrentLocation = async () => {
         const lastKnown = await Location.getLastKnownPositionAsync();
 
         if (lastKnown) {
-            console.log("Last known location used");
-           return {
-            latitude: lastKnown.coords.latitude,
-            longitude: lastKnown.coords.longitude
-        };
+            return {
+                latitude: lastKnown.coords.latitude,
+                longitude: lastKnown.coords.longitude
+            };
         }
 
         const { coords } = await Location.getCurrentPositionAsync({
@@ -41,14 +40,12 @@ export const getCurrentLocation = async () => {
             timeInterval: 15000,
             distanceInterval: 5,
         });
-
-        console.log("Current is used");
         return {
             latitude: coords.latitude,
             longitude: coords.longitude,
         };
-    } catch(error){
-        console.log("Location Error:",error);
+    } catch (error) {
+        console.log("Location Error:", error);
         return null
     }
 };

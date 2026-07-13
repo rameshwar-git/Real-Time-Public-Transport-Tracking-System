@@ -42,7 +42,6 @@ export default function App() {
 
     const [tripId, setTripId] = useState<string | null>(null);
     const [driverDetails, setDriverDetails] = useState<any>(null);
-    const [otp, setOtp] = useState<string | null>(null);
     const [tripStatus, setTripStatus] = useState<string | null>(null);
     const [routeDetails, setRouteDetails] = useState<{ distance: number; duration: number } | null>(null);
     const [matchedDrivers, setMatchedDrivers] = useState<any[]>([]);
@@ -99,7 +98,6 @@ export default function App() {
                 if (data && data.active) {
                     setTripId(data.tripId);
                     setAssignedDriverId(data.driverId);
-                    setOtp(data.otp);
                     setTripStatus(data.tripStatus);
                     setOrigin(data.origin);
                     setDestination(data.destination);
@@ -202,7 +200,6 @@ export default function App() {
         setAssignedDriverId,
         setDriverDetails,
         setTripId,
-        setOtp,
         setTripStatus,
         setIsSearching,
         setIsConfirmed,
@@ -248,7 +245,6 @@ export default function App() {
                         setAssignedDriverId(null);
                         setDriverDetails(null);
                         setTripId(null);
-                        setOtp(null);
                         setTripStatus(null);
                         setDestination(null);
                         setDestinationText("");
@@ -413,7 +409,6 @@ export default function App() {
                     {isConfirmed && !isSearching && assignedDriverId && (
                         <RideStatusBottomSheet
                             tripStatus={tripStatus}
-                            otp={otp}
                             driverDetails={driverDetails}
                             onCancelTrip={handleCancelTrip}
                             assignedDriverLocation={locations.find((u: any) => u.userId === assignedDriverId)?.currentLocation}

@@ -5,7 +5,6 @@ import { getDistance } from '@/utils/geometry';
 
 interface RideStatusBottomSheetProps {
     tripStatus: string | null;
-    otp: string | null;
     driverDetails: {
         name?: string;
         phone?: string;
@@ -26,7 +25,6 @@ interface RideStatusBottomSheetProps {
 
 export const RideStatusBottomSheet = ({
     tripStatus,
-    otp,
     driverDetails,
     onCancelTrip,
     assignedDriverLocation,
@@ -138,17 +136,7 @@ export const RideStatusBottomSheet = ({
                 </View>
             </View>
 
-            {/* OTP Section (Shown only when waiting for pickup) */}
-            {tripStatus === 'scheduled' && otp && (
-                <View style={styles.otpTicket}>
-                    <View style={styles.ticketLeftDot} />
-                    <View style={styles.ticketRightDot} />
-                    <Text style={styles.otpLabel}>SHARE THIS OTP WITH DRIVER TO START RIDE</Text>
-                    <View style={styles.otpCard}>
-                        <Text style={styles.otpValue}>{otp}</Text>
-                    </View>
-                </View>
-            )}
+
 
             {/* Driver Profile Card */}
             <View style={styles.driverCard}>

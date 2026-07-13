@@ -17,7 +17,6 @@ import { useAutoDropoff } from "@/hooks/driver/useAutoDropoff";
 
 // Driver Components
 import { IncomingRequestCard } from "@/components/driver/IncomingRequestCard";
-import { OtpVerificationModal } from "@/components/driver/OtpVerificationModal";
 import { ActiveTripsList } from "@/components/driver/ActiveTripsList";
 import { DutyToggle } from "@/components/driver/DutyToggle";
 
@@ -43,9 +42,6 @@ export default function DriverDashboard() {
     const [pinCoords, setPinCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
     const requestTimeoutRef = useRef<any>(null);
-    const [otpModalVisible, setOtpModalVisible] = useState(false);
-    const [currentOtpTrip, setCurrentOtpTrip] = useState<any>(null);
-    const [otpInput, setOtpInput] = useState('');
     const [mapComponents, setMapComponents] = useState<any>(null);
     const mapRef = useRef<any>(null);
 
@@ -213,14 +209,16 @@ export default function DriverDashboard() {
         }
     };
 
-    const verifyOtp = () => {
-        if (!currentOtpTrip || !otpInput) return;
-        socket.emit("verify-otp", { tripId: currentOtpTrip.tripId, otp: otpInput });
-
-        setActiveTrips(prev => prev.map(t => t.tripId === currentOtpTrip.tripId ? { ...t, status: 'in_progress' } : t));
-        setOtpModalVisible(false);
-        setOtpInput('');
-        setCurrentOtpTrip(null);
+    const handleStartTrip = (trip: any) => {
+        Alert.alert("Start Trip", `Are you sure you want to start the trip for ${trip.passengerName}?`, [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Yes, Start", onPress: () => {
+                    socket.emit("verify-otp", { tripId: trip.tripId, otp: "" });
+                    setActiveTrips(prev => prev.map(t => t.tripId === trip.tripId ? { ...t, status: 'in_progress' } : t));
+                }
+            }
+        ]);
     };
 
     const handleCancelTrip = (trip: any) => {
@@ -231,6 +229,17 @@ export default function DriverDashboard() {
                     socket.emit('cancel-trip', { tripId: trip.tripId, canceledBy: 'driver' });
                     setActiveTrips(prev => prev.filter(t => t.tripId !== trip.tripId));
                 }, style: 'destructive'
+            }
+        ]);
+    };
+
+    const handleEndTrip = (trip: any) => {
+        Alert.alert("End Trip", `Are you sure you want to end the trip for ${trip.passengerName}?`, [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Yes, End", onPress: () => {
+                    socket.emit("dropoff-passenger", { tripId: trip.tripId });
+                }
             }
         ]);
     };
@@ -406,24 +415,13 @@ export default function DriverDashboard() {
                     </View>
                 )}
 
-                <OtpVerificationModal
-                    visible={otpModalVisible}
-                    passengerName={currentOtpTrip?.passengerName || ''}
-                    otpInput={otpInput}
-                    setOtpInput={setOtpInput}
-                    onCancel={() => setOtpModalVisible(false)}
-                    onVerify={verifyOtp}
-                />
-
                 {activeTrips.length > 0 && (
                     <View style={styles.bottomView}>
                         <ActiveTripsList
                             activeTrips={activeTrips}
-                            onOpenOtp={(trip) => {
-                                setCurrentOtpTrip(trip);
-                                setOtpModalVisible(true);
-                            }}
+                            onStartTrip={handleStartTrip}
                             onCancelTrip={handleCancelTrip}
+                            onEndTrip={handleEndTrip}
                         />
                     </View>
                 )}

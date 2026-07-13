@@ -70,12 +70,18 @@ export const useDriverSocketEvents = ({
             Alert.alert("OTP Failed", data.message || "Invalid OTP. Please try again.");
         };
 
+        const handleTripCompleted = (data: any) => {
+            setActiveTrips(prev => prev.filter(t => t.tripId !== data.tripId));
+            Alert.alert("Trip Completed", "The trip has been successfully completed.");
+        };
+
         socket.on("ride-request", handleRideRequest);
         socket.on("trip-created", handleTripCreated);
         socket.on("trip-canceled", handleTripCanceled);
         socket.on("request-canceled", handleRequestCanceled);
         socket.on("otp-verified", handleOtpVerified);
         socket.on("otp-failed", handleOtpFailed);
+        socket.on("trip-completed", handleTripCompleted);
 
         return () => {
             socket.off("ride-request", handleRideRequest);
@@ -84,6 +90,7 @@ export const useDriverSocketEvents = ({
             socket.off("request-canceled", handleRequestCanceled);
             socket.off("otp-verified", handleOtpVerified);
             socket.off("otp-failed", handleOtpFailed);
+            socket.off("trip-completed", handleTripCompleted);
             if (requestTimeoutRef.current) clearTimeout(requestTimeoutRef.current);
         };
         // socket, isOnDuty, userId are the only values that should trigger re-registration.

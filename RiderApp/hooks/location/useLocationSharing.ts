@@ -17,9 +17,7 @@ export const useLocationSharing = (userId: string | null) => {
     const lastDestinationRef = useRef<any>(null);
 
     useEffect(() => {
-        console.log(`[useLocationSharing Hook ${hookId.current}] Hook mounted/rendered. userId:`, userId);
         return () => {
-            console.log(`[useLocationSharing Hook ${hookId.current}] Hook unmounting.`);
             if (globalLocationInterval) {
                 clearInterval(globalLocationInterval);
                 globalLocationInterval = null;
@@ -28,12 +26,10 @@ export const useLocationSharing = (userId: string | null) => {
     }, []);
 
     const startSharing = async (destination?: any, status?: string) => {
-        console.log(`[useLocationSharing Hook ${hookId.current}] startSharing called. Current global interval:`, globalLocationInterval);
         if (!userId) return;
 
         // Synchronously clear previous interval to prevent concurrent timers
         if (globalLocationInterval) {
-            console.log(`[useLocationSharing Hook ${hookId.current}] startSharing clearing existing global interval:`, globalLocationInterval);
             clearInterval(globalLocationInterval);
             globalLocationInterval = null;
         }
@@ -70,7 +66,7 @@ export const useLocationSharing = (userId: string | null) => {
                     lastDestinationRef.current = destination;
 
                     globalLastStatus = currentStatus; // Sync to global
-                    console.log(`[useLocationSharing Hook ${hookId.current}] Sending location update:`, { coords, destination, status: currentStatus });
+                    console.log(`Sending location update:`, { coords, destination, status: currentStatus });
 
                     await updateLocation(userId!, coords, destination, locationId || undefined, token, currentStatus);
 
@@ -92,15 +88,12 @@ export const useLocationSharing = (userId: string | null) => {
 
         // 5-second polling (synchronously assign pointer to prevent multiple concurrent timers)
         globalLocationInterval = setInterval(updateFn, 5000);
-        console.log(`[useLocationSharing Hook ${hookId.current}] Set new global interval:`, globalLocationInterval);
     };
 
     const stopSharing = async (skipDbUpdate = false) => {
-        console.log(`[useLocationSharing Hook ${hookId.current}] stopSharing called. globalLocationInterval:`, globalLocationInterval, "globalLastStatus:", globalLastStatus, "skipDbUpdate:", skipDbUpdate);
 
         // Synchronously clear interval if it exists
         if (globalLocationInterval) {
-            console.log(`[useLocationSharing Hook ${hookId.current}] stopSharing clearing global interval:`, globalLocationInterval);
             clearInterval(globalLocationInterval);
             globalLocationInterval = null;
         }
@@ -112,7 +105,6 @@ export const useLocationSharing = (userId: string | null) => {
 
         // Idempotency: If already globally inactive, do NOT call database update
         if (globalLastStatus === 'inactive') {
-            console.log(`[useLocationSharing Hook ${hookId.current}] stopSharing early exit. Already globally inactive.`);
             return;
         }
 
@@ -130,7 +122,6 @@ export const useLocationSharing = (userId: string | null) => {
             const loc = await getCurrentLocation();
             if (loc) {
                 const coords = { latitude: loc.latitude, longitude: loc.longitude };
-                console.log(`[useLocationSharing Hook ${hookId.current}] Sending final inactive location update.`);
                 await updateLocation(userId, coords, null, locationId || undefined, token, 'inactive');
                 if (socket.connected) {
                     socket.emit("update-location", {

@@ -12,7 +12,6 @@ interface UseRideSocketEventsProps {
     setAssignedDriverId: (id: string | null) => void;
     setDriverDetails: (details: any) => void;
     setTripId: (id: string | null) => void;
-    setOtp: (otp: string | null) => void;
     setTripStatus: (status: string | null) => void;
     setIsSearching: (isSearching: boolean) => void;
     setIsConfirmed: (isConfirmed: boolean) => void;
@@ -35,7 +34,6 @@ export const useRideSocketEvents = ({
     setAssignedDriverId,
     setDriverDetails,
     setTripId,
-    setOtp,
     setTripStatus,
     setIsSearching,
     setIsConfirmed,
@@ -68,7 +66,6 @@ export const useRideSocketEvents = ({
                 fare: data.fare,
             });
             setTripId(data.tripId);
-            setOtp(data.otp);
             setTripStatus('scheduled');
             setIsSearching(false);
             acceptedVehicleTypeRef.current = data.vehicleType || null;
@@ -88,7 +85,6 @@ export const useRideSocketEvents = ({
             setAssignedDriverId(null);
             setDriverDetails(null);
             setTripId(null);
-            setOtp(null);
             setTripStatus(null);
             setIsConfirmed(false);
             setDestination(null);
@@ -102,7 +98,6 @@ export const useRideSocketEvents = ({
             setAssignedDriverId(null);
             setDriverDetails(null);
             setTripId(null);
-            setOtp(null);
             setTripStatus(null);
             setIsConfirmed(false);
             setIsSearching(false);

@@ -77,17 +77,8 @@ export default function initSocket(io: any) {
                 if (passengerFare !== undefined) {
                     fare = passengerFare;
                 } else {
-                    const { calculateFare, roundToNearestFive } = require('@/utils/geometry');
-                    let baseFare = calculateFare(estimatedDistance);
-                    fare = baseFare;
-                    if (vehicle) {
-                        if (vehicle.vehicleType === 'tricycle') {
-                            fare = Number((baseFare * 0.8).toFixed(2));
-                        } else if (vehicle.vehicleType === 'bus') {
-                            fare = Number((baseFare * 1.5).toFixed(2));
-                        }
-                    }
-                    fare = roundToNearestFive(fare);
+                    const { calculateFare } = require('@/utils/fareCalculator');
+                    fare = calculateFare(estimatedDistance, vehicle?.vehicleType);
                 }
             } catch (err) {
                 console.error("Error calculating driver route match percentage or fare:", err);
@@ -161,25 +152,15 @@ export default function initSocket(io: any) {
             const vehicle = await VehicleModel.findOne({ driverId: driverId });
 
             // Calculate estimated distance, duration and fare
-            const { getDistance, calculateFare } = require('@/utils/geometry');
+            const { getDistance } = require('@/utils/geometry');
+            const { calculateFare } = require('@/utils/fareCalculator');
             let estimatedDistance = 0;
             let estimatedDuration = 0;
             if (origin && destination) {
                 estimatedDistance = getDistance(origin.latitude, origin.longitude, destination.latitude, destination.longitude);
                 estimatedDuration = Math.max(1, Math.round(estimatedDistance * 2.4));
             }
-            let fare = driverPassedFare !== undefined ? driverPassedFare : calculateFare(estimatedDistance);
-            if (driverPassedFare === undefined) {
-                if (vehicle) {
-                    if (vehicle.vehicleType === 'tricycle') {
-                        fare = Number((fare * 0.8).toFixed(2));
-                    } else if (vehicle.vehicleType === 'bus') {
-                        fare = Number((fare * 1.5).toFixed(2));
-                    }
-                }
-                const { roundToNearestFive } = require('@/utils/geometry');
-                fare = roundToNearestFive(fare);
-            }
+            let fare = driverPassedFare !== undefined ? driverPassedFare : calculateFare(estimatedDistance, vehicle?.vehicleType);
  
             // Create trip
             const { TripModel } = require('@/models/trip/TripModel');
@@ -231,11 +212,11 @@ export default function initSocket(io: any) {
         });
 
         socket.on("verify-otp", async (data: any) => {
-            const { tripId, otp } = data;
+            const { tripId } = data;
             const { TripModel } = require('@/models/trip/TripModel');
             const trip = await TripModel.findById(tripId);
 
-            if (trip && trip.otp === otp) {
+            if (trip) {
                 trip.status = 'in_progress';
                 await trip.save();
 
@@ -244,11 +225,11 @@ export default function initSocket(io: any) {
                     io.to(passengerSocketId).emit("trip-started", { tripId });
                 }
 
-                // Confirm to the driver that OTP was verified
+                // Confirm to the driver that OTP was verified (trip started)
                 socket.emit("otp-verified", { tripId, status: 'in_progress' });
             } else {
-                // Notify the driver that OTP verification failed
-                socket.emit("otp-failed", { tripId, message: "Invalid OTP. Please try again." });
+                // Notify the driver that starting the trip failed
+                socket.emit("otp-failed", { tripId, message: "Trip not found." });
             }
         });
 
@@ -257,7 +238,7 @@ export default function initSocket(io: any) {
             const { TripModel } = require('@/models/trip/TripModel');
             const trip = await TripModel.findById(tripId);
 
-            if (trip && trip.status === 'in_progress') {
+            if (trip && (trip.status === 'in_progress' || trip.status === 'scheduled')) {
                 trip.status = 'completed';
                 trip.endDate = new Date();
                 await trip.save();
@@ -274,6 +255,9 @@ export default function initSocket(io: any) {
                 if (passengerSocketId) {
                     io.to(passengerSocketId).emit("trip-completed", { tripId });
                 }
+                
+                // Also notify the driver
+                socket.emit("trip-completed", { tripId });
             }
         });
 

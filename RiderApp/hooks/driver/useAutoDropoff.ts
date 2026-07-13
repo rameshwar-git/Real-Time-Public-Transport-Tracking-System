@@ -33,8 +33,6 @@ export const useAutoDropoff = ({ socket, origin, activeTrips, setActiveTrips }: 
                     );
                     if (dist <= 0.3) { // 100 meters
                         socket.emit("dropoff-passenger", { tripId: trip.tripId });
-                        setActiveTrips(prev => prev.filter(t => t.tripId !== trip.tripId));
-                        Alert.alert("Drop-off Complete", `${trip.passengerName} has reached their destination!`);
                     }
                 }
             }

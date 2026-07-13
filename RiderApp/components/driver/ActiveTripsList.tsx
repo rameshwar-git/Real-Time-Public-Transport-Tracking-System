@@ -3,11 +3,12 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-nati
 
 interface ActiveTripsListProps {
     activeTrips: any[];
-    onOpenOtp: (trip: any) => void;
+    onStartTrip: (trip: any) => void;
     onCancelTrip: (trip: any) => void;
+    onEndTrip: (trip: any) => void;
 }
 
-export const ActiveTripsList = ({ activeTrips, onOpenOtp, onCancelTrip }: ActiveTripsListProps) => {
+export const ActiveTripsList = ({ activeTrips, onStartTrip, onCancelTrip, onEndTrip }: ActiveTripsListProps) => {
     if (activeTrips.length === 0) return null;
 
     return (
@@ -29,8 +30,8 @@ export const ActiveTripsList = ({ activeTrips, onOpenOtp, onCancelTrip }: Active
                     </View>
                     <View style={styles.tripActions}>
                         {trip.status === 'scheduled' && (
-                            <TouchableOpacity style={styles.otpBtn} onPress={() => onOpenOtp(trip)}>
-                                <Text style={styles.btnTextSmall}>Enter OTP</Text>
+                            <TouchableOpacity style={styles.otpBtn} onPress={() => onStartTrip(trip)}>
+                                <Text style={styles.btnTextSmall}>Start Trip</Text>
                             </TouchableOpacity>
                         )}
                         {trip.status === 'scheduled' && (
@@ -39,9 +40,9 @@ export const ActiveTripsList = ({ activeTrips, onOpenOtp, onCancelTrip }: Active
                             </TouchableOpacity>
                         )}
                         {trip.status === 'in_progress' && (
-                            <View style={[styles.otpBtn, { backgroundColor: '#10B981' }]}>
-                                <Text style={styles.btnTextSmall}>🚗 Trip Active</Text>
-                            </View>
+                            <TouchableOpacity style={[styles.otpBtn, { backgroundColor: '#10B981' }]} onPress={() => onEndTrip(trip)}>
+                                <Text style={styles.btnTextSmall}>End Trip</Text>
+                            </TouchableOpacity>
                         )}
                     </View>
                 </View>
