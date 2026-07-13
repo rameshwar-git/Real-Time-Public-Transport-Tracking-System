@@ -31,5 +31,5 @@ export const useLiveLocations = (origin?: { latitude: number, longitude: number 
         return stopPolling;
     }, []);
 
-    return { locations, startPolling, stopPolling };
+    return { locations, setLocations, startPolling, stopPolling };
 };

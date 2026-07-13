@@ -16,7 +16,7 @@ export default {
       bundleIdentifier: "com.admin.dev.justintime",
       config: {
         googleMaps: {
-          apiKey: process.env.GOOGLE_MAPS_API_KEY
+          apiKey: process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_MAP_API_KEY
         }
       },
       infoPlist: {
@@ -28,7 +28,7 @@ export default {
       package: "com.admin.dev.justintime.user",
       config: {
         googleMaps: {
-          apiKey: process.env.GOOGLE_MAPS_API_KEY
+          apiKey: process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_MAP_API_KEY
         }
       },
        permissions: [

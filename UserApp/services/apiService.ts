@@ -65,6 +65,12 @@ export const getPassengerStats = async () => {
     return await res.json();
 };
 
+export const getActiveTrip = async () => {
+    const res = await authFetch("/passengers/active-trip");
+    if (!res.ok) throw new Error("Failed to fetch active trip");
+    return await res.json();
+};
+
 export const getCurrentUser = async () => {
     const res = await authFetch("/me");
     if (!res.ok) throw new Error("Failed to fetch current user profile");

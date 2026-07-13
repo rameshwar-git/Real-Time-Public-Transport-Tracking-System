@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { watchUserLocation } from "@/services/locationServices";
 import { updateLocation } from "@/services/apiService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { socket } from "@/services/socket";
 
 export const useLocationSharing = (userId: string | null) => {
     const locationSub = useRef<any>(null);
@@ -20,6 +21,14 @@ export const useLocationSharing = (userId: string | null) => {
             };
 
             await updateLocation(userId, coords, destination, locationId, token, status);
+
+            // Emit real-time position so the backend can run proximity checks
+            if (socket.connected) {
+                socket.emit("update-location", {
+                    userId,
+                    currentLocation: coords,
+                });
+            }
         });
     };
 

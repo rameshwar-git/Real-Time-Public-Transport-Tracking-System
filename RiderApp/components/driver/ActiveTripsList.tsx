@@ -15,9 +15,17 @@ export const ActiveTripsList = ({ activeTrips, onOpenOtp, onCancelTrip }: Active
             <Text style={styles.tripsHeader}>Current Trips ({activeTrips.length})</Text>
             {activeTrips.map((trip, idx) => (
                 <View key={idx} style={styles.tripCard}>
-                    <View>
+                    <View style={{ flex: 1 }}>
                         <Text style={styles.tripPassenger}>{trip.passengerName}</Text>
-                        <Text style={styles.tripStatus}>{trip.status === 'scheduled' ? 'Awaiting Pickup' : 'In Progress'}</Text>
+                        <Text style={styles.tripStatus}>
+                            {trip.status === 'scheduled' ? 'Awaiting Pickup' : 'In Progress'}
+                            {trip.estimatedDistance !== undefined && trip.estimatedDuration !== undefined && (
+                                ` • ${trip.estimatedDistance.toFixed(1)} km (${trip.estimatedDuration} min)`
+                            )}
+                            {trip.fare !== undefined && (
+                                ` • ₹${Number(trip.fare).toFixed(2)}`
+                            )}
+                        </Text>
                     </View>
                     <View style={styles.tripActions}>
                         {trip.status === 'scheduled' && (
@@ -26,12 +34,12 @@ export const ActiveTripsList = ({ activeTrips, onOpenOtp, onCancelTrip }: Active
                             </TouchableOpacity>
                         )}
                         {trip.status === 'scheduled' && (
-                            <TouchableOpacity style={[styles.otpBtn, { backgroundColor: '#F44336', marginLeft: 8 }]} onPress={() => onCancelTrip(trip)}>
+                            <TouchableOpacity style={[styles.otpBtn, { backgroundColor: '#EF4444', marginLeft: 8 }]} onPress={() => onCancelTrip(trip)}>
                                 <Text style={styles.btnTextSmall}>Cancel</Text>
                             </TouchableOpacity>
                         )}
                         {trip.status === 'in_progress' && (
-                            <View style={[styles.otpBtn, { backgroundColor: '#4CAF50' }]}>
+                            <View style={[styles.otpBtn, { backgroundColor: '#10B981' }]}>
                                 <Text style={styles.btnTextSmall}>🚗 Trip Active</Text>
                             </View>
                         )}
@@ -51,34 +59,39 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         marginBottom: 10,
-        color: '#333'
+        color: '#F8FAFC'
     },
     tripCard: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#f9f9f9',
-        padding: 10,
-        borderRadius: 8,
-        marginBottom: 8
+        backgroundColor: '#334155',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#475569',
     },
     tripPassenger: {
         fontSize: 16,
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        color: '#F8FAFC'
     },
     tripStatus: {
         fontSize: 12,
-        color: '#666'
+        color: '#94A3B8',
+        marginTop: 4
     },
     tripActions: {
         flexDirection: 'row',
-        alignItems: 'center'
+        alignItems: 'center',
+        marginLeft: 10
     },
     otpBtn: {
-        backgroundColor: '#2196F3',
+        backgroundColor: '#3B82F6',
         paddingVertical: 8,
-        paddingHorizontal: 15,
-        borderRadius: 6
+        paddingHorizontal: 14,
+        borderRadius: 8
     },
     btnTextSmall: {
         color: '#fff',

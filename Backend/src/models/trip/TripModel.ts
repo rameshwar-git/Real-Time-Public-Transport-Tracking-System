@@ -5,6 +5,9 @@ import { Trip } from '../interfaces/tripModel';
 export interface ExtendedTrip extends Trip {
     otp?: string;
     passengerName?: string;
+    estimatedDuration?: number;
+    estimatedDistance?: number;
+    fare?: number;
 }
 
 const TripSchema = new Schema<ExtendedTrip>({
@@ -24,7 +27,10 @@ const TripSchema = new Schema<ExtendedTrip>({
     startDate: { type: Date, default: Date.now },
     endDate: { type: Date },
     status: { type: String, enum: ['scheduled', 'in_progress', 'completed', 'canceled'], default: 'scheduled' },
-    rating: { type: Number, min: 1, max: 5 }
+    rating: { type: Number, min: 1, max: 5 },
+    estimatedDuration: { type: Number },
+    estimatedDistance: { type: Number },
+    fare: { type: Number }
 });
 
 export const TripModel = model<ExtendedTrip>('Trip', TripSchema);

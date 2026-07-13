@@ -3,10 +3,22 @@ import { Request, Response } from 'express';
 import { TripModel } from '@/models/trip/TripModel';
 import DriverModel from '@/models/users/UserDriverModel';
 import VehicleModel from '@/models/vehicles/VehicleModel';
+import DriverLocationModel from '@/models/location/DriverLocation';
+import PassengerLocationModel from '@/models/location/PassengerLocation';
+import { calculateFare } from '@/utils/geometry';
 import { createPassengerLocation } from '@controllers/location/LocationController';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { AuthRequest } from "@/middleware/verifyToken";
+
+/** Returns true only when a coordinate pair is a real, routable location */
+const isValidCoord = (c: any): boolean =>
+  c != null &&
+  typeof c.latitude === 'number' &&
+  typeof c.longitude === 'number' &&
+  !isNaN(c.latitude) &&
+  !isNaN(c.longitude) &&
+  !(c.latitude === 0 && c.longitude === 0);
 
 //Register New Passenger
 export const createPassenger = async (req: Request, res: Response) => {
@@ -182,6 +194,7 @@ export const getRecentRides = async (req: AuthRequest, res: Response) => {
 
     const rides = completedTrips.map(trip => {
       const endDate = trip.endDate ? new Date(trip.endDate) : new Date();
+      const calculatedFare = trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0);
       return {
         id: trip._id,
         from: 'Start Location',
@@ -193,7 +206,7 @@ export const getRecentRides = async (req: AuthRequest, res: Response) => {
           hour: '2-digit',
           minute: '2-digit'
         }),
-        fare: '₹120',
+        fare: `₹${calculatedFare.toFixed(2)}`,
         rating: trip.rating || 5
       };
     });
@@ -220,12 +233,12 @@ export const getPassengerStats = async (req: AuthRequest, res: Response) => {
       ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length)
       : 0;
 
-    const totalSpent = completedTrips.length * 120;
-
+    const totalSpent = completedTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
+ 
     return res.status(200).json({
       totalRides,
       averageRating: Number(averageRating.toFixed(1)),
-      totalSpent
+      totalSpent: Number(totalSpent.toFixed(2))
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -248,6 +261,102 @@ export const updatePassengerProfile = async (req: AuthRequest, res: Response) =>
     }
 
     return res.status(200).json({ message: "Profile updated successfully", data: updatedPassenger });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+export const getActiveTrip = async (req: AuthRequest, res: Response) => {
+  try {
+    const passengerId = req.user!.id;
+    if (!passengerId) {
+      return res.status(400).json({ error: "Passenger ID is required" });
+    }
+
+    // Find the single active/ongoing trip
+    const activeTrip = await TripModel.findOne({
+      passengerId,
+      status: { $in: ['scheduled', 'in_progress'] }
+    }).lean();
+
+    if (!activeTrip) {
+      return res.status(200).json({ active: false });
+    }
+
+    const tripDestination = activeTrip.destination;
+    const tripStartLocation = activeTrip.startLocation;
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Restore destination into BOTH location records so startSharing on reopen
+    // sends valid coords to the REST API and route matching works correctly.
+    // ──────────────────────────────────────────────────────────────────────────
+    const locationUpdates: Promise<any>[] = [];
+
+    // Passenger's location record → destination = trip.destination (final stop)
+    if (isValidCoord(tripDestination)) {
+      locationUpdates.push(
+        PassengerLocationModel.findOneAndUpdate(
+          { userId: passengerId },
+          { destination: tripDestination },
+          { new: true }
+        )
+      );
+    }
+
+    // Driver's location record →
+    //   • scheduled  : driver is heading to the pickup (startLocation)
+    //   • in_progress: driver is heading to the final destination
+    const driverDestinationToRestore =
+      activeTrip.status === 'in_progress' ? tripDestination : tripStartLocation;
+
+    if (isValidCoord(driverDestinationToRestore)) {
+      locationUpdates.push(
+        DriverLocationModel.findOneAndUpdate(
+          { userId: activeTrip.driverId },
+          { destination: driverDestinationToRestore },
+          { new: true }
+        )
+      );
+    }
+
+    await Promise.all(locationUpdates);
+
+    // Get driver profile details
+    const driver = await DriverModel.findById(activeTrip.driverId).lean();
+    const vehicle = await VehicleModel.findOne({ driverId: activeTrip.driverId }).lean();
+
+    // Get driver's latest GPS position for immediate route rendering on reopen
+    const driverLocationRecord = await DriverLocationModel.findOne({ userId: activeTrip.driverId }).lean();
+    const rawDriverLoc = driverLocationRecord?.currentLocation;
+    const driverCurrentLocation = isValidCoord(rawDriverLoc)
+      ? { latitude: rawDriverLoc!.latitude, longitude: rawDriverLoc!.longitude }
+      : null;
+
+    // Only return valid (non-zero) coordinates to the frontend
+    const safeOrigin = isValidCoord(tripStartLocation) ? tripStartLocation : null;
+    const safeDestination = isValidCoord(tripDestination) ? tripDestination : null;
+
+    return res.status(200).json({
+      active: true,
+      tripId: activeTrip._id,
+      driverId: activeTrip.driverId,
+      otp: activeTrip.otp,
+      tripStatus: activeTrip.status,
+      origin: safeOrigin,
+      destination: safeDestination,
+      driverCurrentLocation,
+      driverDetails: {
+        name: driver?.name,
+        phone: driver?.phone,
+        vehicleModel: vehicle?.vehicleModel,
+        vehicleNumber: vehicle?.vehicleNumber,
+        vehicleColor: vehicle?.color,
+        vehicleType: vehicle?.vehicleType,
+        estimatedDistance: activeTrip.estimatedDistance,
+        estimatedDuration: activeTrip.estimatedDuration,
+        fare: activeTrip.fare !== undefined ? activeTrip.fare : calculateFare(activeTrip.estimatedDistance || 0)
+      }
+    });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

@@ -98,7 +98,7 @@ export const updateDriverLocation = async (req: AuthRequest, res: Response) => {
 export const getAllPassengerLocations = async (req: Request, res: Response) => {
     try {
         const { lat, lng } = req.query;
-        let allLocation = await PassengerLocationModel.find({}).select("userId currentLocation destination status -_id").lean();
+        let allLocation = await PassengerLocationModel.find({ status: { $nin: ['inactive', 'offline'] } }).select("userId currentLocation destination status -_id").lean();
 
         if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
             const origin = { latitude: Number(lat), longitude: Number(lng) };
@@ -115,7 +115,7 @@ export const getAllPassengerLocations = async (req: Request, res: Response) => {
 export const getAllDriverLocations = async (req: Request, res: Response) => {
     try {
         const { lat, lng } = req.query;
-        let allLocation = await DriverLocationModel.find({})
+        let allLocation = await DriverLocationModel.find({ status: { $nin: ['inactive', 'offline'] } })
             .select("userId currentLocation vehicleId destination status -_id")
             .populate('vehicleId', 'vehicleType')
             .lean();

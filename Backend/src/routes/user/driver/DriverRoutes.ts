@@ -7,7 +7,8 @@ import {
     getDriverEarnings, 
     getWeeklyEarnings,
     getDriverProfile,
-    updateDriverProfile
+    updateDriverProfile,
+    getActiveDriverTrips
 } from "@/controllers/user/DriverController";
 import { verifyToken } from "@/middleware/verifyToken";
 
@@ -23,6 +24,7 @@ router.put("/drivers/vehicles/:driverId", verifyToken, setDriverVehicle);
 //validate driver token
 router.get("/drivers/validate", verifyToken, validateDriver);
 
+router.get("/drivers/active-trips", verifyToken, getActiveDriverTrips);
 //get driver earnings
 router.get("/drivers/earnings", verifyToken, getDriverEarnings);
 

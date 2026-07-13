@@ -23,7 +23,7 @@ export async function getPlacePredictions(
         "https://maps.googleapis.com/maps/api/place/autocomplete/json" +
         `?input=${encodeURIComponent(input)}` +
         `&location=${latitude},${longitude}` +
-        `&radius=20000` + // 20km search radius
+        `&radius=5000` + // 5km search radius
         `&key=${GOOGLE_API_KEY}`;
 
     const res = await fetch(url);

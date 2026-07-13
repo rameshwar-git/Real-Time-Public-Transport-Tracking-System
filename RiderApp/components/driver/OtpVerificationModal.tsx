@@ -43,30 +43,42 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)'
+        backgroundColor: 'rgba(15, 23, 42, 0.7)' // Slate dark overlay
     },
     modalContent: {
-        backgroundColor: '#fff',
-        padding: 20,
-        borderRadius: 15,
-        width: '80%',
-        alignItems: 'center'
+        backgroundColor: '#1E293B',
+        padding: 24,
+        borderRadius: 24,
+        width: '85%',
+        alignItems: 'center',
+        borderWidth: 1.5,
+        borderColor: '#334155',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+        elevation: 12,
     },
     modalTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        marginBottom: 15
+        marginBottom: 16,
+        color: '#F8FAFC',
+        textAlign: 'center',
     },
     otpInput: {
-        borderWidth: 1,
-        borderColor: '#ccc',
+        borderWidth: 1.5,
+        borderColor: '#334155',
+        backgroundColor: '#0F172A',
+        color: '#10B981', // Neon emerald digits
         width: '100%',
-        fontSize: 24,
+        fontSize: 26,
+        fontWeight: 'bold',
         textAlign: 'center',
-        padding: 10,
-        borderRadius: 8,
+        padding: 12,
+        borderRadius: 14,
         marginBottom: 20,
-        letterSpacing: 5
+        letterSpacing: 8
     },
     modalActions: {
         flexDirection: 'row',
@@ -74,19 +86,19 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between'
     },
     cancelBtn: {
-        backgroundColor: '#F44336',
-        padding: 12,
-        borderRadius: 8,
+        backgroundColor: '#EF4444',
+        paddingVertical: 14,
+        borderRadius: 12,
         flex: 1,
-        marginRight: 5,
+        marginRight: 6,
         alignItems: 'center'
     },
     verifyBtn: {
-        backgroundColor: '#4CAF50',
-        padding: 12,
-        borderRadius: 8,
+        backgroundColor: '#10B981',
+        paddingVertical: 14,
+        borderRadius: 12,
         flex: 1,
-        marginLeft: 5,
+        marginLeft: 6,
         alignItems: 'center'
     },
     actionBtnText: {

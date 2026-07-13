@@ -6,6 +6,8 @@ type Props = {
     placeholder?: string;
     value: string;
     onChangeText: (text: string) => void;
+    onFocus?: () => void;
+    onBlur?: () => void;
 };
 
 const LocationSearchInput: React.FC<Props> = (
@@ -13,21 +15,25 @@ const LocationSearchInput: React.FC<Props> = (
         placeholder = "Search location",
         value,
         onChangeText,
+        onFocus,
+        onBlur,
     }
 ) => {
-    const [mvalue, setValue] = useState("");
-
     return (
         <View style={styles.container}>
+            <MapPin size={18} color="#10B981" style={styles.leftIcon} />
             <TextInput
                 placeholder={placeholder}
+                placeholderTextColor="#64748B"
                 value={value}
                 onChangeText={onChangeText}
                 style={styles.input}
+                onFocus={onFocus}
+                onBlur={onBlur}
             />
             {value.length > 0 && (
-                <TouchableOpacity onPress={() => onChangeText("")}>
-                    <X size={20} color="#000" />
+                <TouchableOpacity onPress={() => onChangeText("")} style={styles.clearButton}>
+                    <X size={18} color="#94A3B8" />
                 </TouchableOpacity>
             )}
         </View>
@@ -41,18 +47,24 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         width: "auto",
-        backgroundColor: "#f5f6f8",
+        backgroundColor: "#0F172A",
         borderRadius: 12,
-        paddingHorizontal: 15,
-        paddingVertical: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderWidth: 1,
+        borderColor: "#334155",
     },
     input: {
         flex: 1,
-        fontSize: 16,
-        color: "#333",
+        fontSize: 15,
+        color: "#F1F5F9",
         paddingHorizontal: 8,
+        height: 36,
     },
     leftIcon: {
-        marginRight: 8,
+        marginRight: 2,
+    },
+    clearButton: {
+        padding: 4,
     },
 });

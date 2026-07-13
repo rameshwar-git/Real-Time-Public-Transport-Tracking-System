@@ -1,10 +1,10 @@
 import React from "react";
-import {Platform} from "react-native";
-import {UserLocation} from "@/types/map";
-import {Region} from "react-native-maps";
+import { Platform, View, Image, StyleSheet } from "react-native";
+import { UserLocation } from "@/types/map";
+import { Region } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
-import {env} from "@/config/env";
-import {getDistance, getNearestNUsers, calculateRouteMatch} from "@/utils/geometry";
+import { env } from "@/config/env";
+import { getDistance, getNearestNUsers, calculateRouteMatch } from "@/utils/geometry";
 
 type Props = {
     MapView: any;
@@ -19,6 +19,8 @@ type Props = {
     isConfirmed?: boolean;
     activeTrips?: any[];
     isOnDuty?: boolean;
+    onDestinationPress?: () => void;
+    isChoosingOnMap?: boolean;
 };
 
 export const MapViewComponent: React.FC<Props> = (
@@ -34,15 +36,26 @@ export const MapViewComponent: React.FC<Props> = (
         mapRef,
         isConfirmed,
         activeTrips,
-        isOnDuty
+        isOnDuty,
+        onDestinationPress,
+        isChoosingOnMap
     }) => {
     if (!MapView || !mapRegion) return null;
 
+    // Reject 0,0 / NaN / null coords — prevents Google Maps NOT_FOUND errors
+    const isValidCoord = (c: any): boolean =>
+        c != null &&
+        typeof c.latitude === 'number' &&
+        typeof c.longitude === 'number' &&
+        !isNaN(c.latitude) &&
+        !isNaN(c.longitude) &&
+        !(c.latitude === 0 && c.longitude === 0);
 
     return (
-        <MapView
-            ref={mapRef}
-            style={{flex: 1}}
+        <View style={{flex: 1}}>
+            <MapView
+                ref={mapRef}
+            style={{ flex: 1 }}
             region={mapRegion}
             onRegionChangeComplete={setMapRegion}
             showsUserLocation
@@ -64,7 +77,7 @@ export const MapViewComponent: React.FC<Props> = (
                     if (!u.currentLocation || u.userId === currentUserId || !!u.vehicleId || (u.status !== 'confirmed' && u.status !== 'active')) {
                         return false;
                     }
-                    
+
                     if (destination && typeof destination.latitude === 'number' && typeof destination.longitude === 'number' && u.destination && typeof u.destination.latitude === 'number' && typeof u.destination.longitude === 'number' && u.currentLocation && typeof u.currentLocation.latitude === 'number' && typeof u.currentLocation.longitude === 'number') {
                         try {
                             const match = calculateRouteMatch(origin, destination, u.currentLocation, u.destination);
@@ -93,20 +106,20 @@ export const MapViewComponent: React.FC<Props> = (
                     ...nearestPassengers.map((u: any) => {
                         if (!u.currentLocation || typeof u.currentLocation.latitude !== 'number' || typeof u.currentLocation.longitude !== 'number' || isNaN(u.currentLocation.latitude) || isNaN(u.currentLocation.longitude)) return null;
                         return (
-                            <Marker 
-                                key={`p_${u.userId || u._id}`} 
-                                coordinate={u.currentLocation} 
-                                image={require("@assets/map/passenger.png")} 
+                            <Marker
+                                key={`p_${u.userId || u._id}`}
+                                coordinate={u.currentLocation}
+                                image={require("@assets/map/passenger.png")}
                             />
                         );
                     }).filter(Boolean),
                     ...activeTripPassengers.map((u: any) => {
                         if (!u.currentLocation || typeof u.currentLocation.latitude !== 'number' || typeof u.currentLocation.longitude !== 'number' || isNaN(u.currentLocation.latitude) || isNaN(u.currentLocation.longitude)) return null;
                         return (
-                            <Marker 
-                                key={`act_${u.userId}`} 
-                                coordinate={u.currentLocation} 
-                                image={require("@assets/map/passenger.png")} 
+                            <Marker
+                                key={`act_${u.userId}`}
+                                coordinate={u.currentLocation}
+                                image={require("@assets/map/passenger.png")}
                             />
                         );
                     }).filter(Boolean),
@@ -114,35 +127,65 @@ export const MapViewComponent: React.FC<Props> = (
                         if (!u.currentLocation || typeof u.currentLocation.latitude !== 'number' || typeof u.currentLocation.longitude !== 'number' || isNaN(u.currentLocation.latitude) || isNaN(u.currentLocation.longitude)) return null;
                         const isTricycle = u.vehicleId && u.vehicleId.vehicleType === 'tricycle';
                         return (
-                            <Marker 
-                                key={`d_${u.userId || u._id}`} 
-                                coordinate={u.currentLocation} 
-                                image={isTricycle ? require("@assets/map/tricycle.png") : require("@assets/map/bus.png")} 
+                            <Marker
+                                key={`d_${u.userId || u._id}`}
+                                coordinate={u.currentLocation}
+                                image={isTricycle ? require("@assets/map/tricycle.png") : require("@assets/map/bus.png")}
                             />
                         );
                     }).filter(Boolean)
                 ];
             })()}
-            {origin && typeof origin.latitude === 'number' && typeof origin.longitude === 'number' && !isNaN(origin.latitude) && !isNaN(origin.longitude) && destination && typeof destination.latitude === 'number' && typeof destination.longitude === 'number' && !isNaN(destination.latitude) && !isNaN(destination.longitude) && (
+            {isOnDuty && isValidCoord(origin) && isValidCoord(destination) && (
                 <MapViewDirections
                     origin={origin}
                     destination={destination}
                     apikey={env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}
                     strokeWidth={5}
                     strokeColor="blue"
+                    mode="DRIVING"
                     onReady={(result) => {
-                        mapRef.current?.fitToCoordinates(result.coordinates);
+                        mapRef.current?.fitToCoordinates(result.coordinates, {
+                            edgePadding: { top: 80, right: 60, bottom: 220, left: 60 },
+                            animated: true,
+                        });
                     }}
+                    onError={(err) => console.warn('[MapViewDirections] Route error:', err)}
                 />
             )}
-            {destination && typeof destination.latitude === 'number' && typeof destination.longitude === 'number' && !isNaN(destination.latitude) && !isNaN(destination.longitude) && (
+            {isOnDuty && !isChoosingOnMap && isValidCoord(destination) && (
                 <Marker
                     coordinate={destination}
                     title="Destination"
                     description={destination.description}
                     image={require("@assets/map/destination.png")}
+                    onPress={() => onDestinationPress?.()}
                 />
             )}
         </MapView>
+        {isChoosingOnMap && (
+            <View style={styles.centerPinContainer} pointerEvents="none">
+                <Image source={require("@assets/map/destination.png")} style={styles.centerPinImage} />
+            </View>
+        )}
+        </View>
     );
 };
+
+const styles = StyleSheet.create({
+    centerPinContainer: {
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
+        marginLeft: -16, // Half of 32
+        marginTop: -32, // Height of pin so tip aligns perfectly with map center
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 100,
+    },
+    centerPinImage: {
+        width: 32,
+        height: 32,
+        resizeMode: 'contain',
+    },
+});

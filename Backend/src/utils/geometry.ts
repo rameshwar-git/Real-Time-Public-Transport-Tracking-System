@@ -20,9 +20,9 @@ export const getDistance = (lat1: number, lon1: number, lat2: number, lon2: numb
     const a =
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos((lat1 * Math.PI) / 180) *
-            Math.cos((lat2 * Math.PI) / 180) *
-            Math.sin(dLon / 2) *
-            Math.sin(dLon / 2);
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 };
@@ -72,19 +72,19 @@ export const calculateRouteMatch = (
 ) => {
     const driverRouteDist = getDistance(driverLoc.latitude, driverLoc.longitude, driverDest.latitude, driverDest.longitude) || 1;
     const passRouteDist = getDistance(passOrigin.latitude, passOrigin.longitude, passDest.latitude, passDest.longitude);
-    
+
     const distToPassenger = getDistance(driverLoc.latitude, driverLoc.longitude, passOrigin.latitude, passOrigin.longitude);
     const distToDest = getDistance(driverDest.latitude, driverDest.longitude, passDest.latitude, passDest.longitude);
 
     // Percentage of driver route overlap
     const destinationMatchPercentage = Math.max(0, 100 - (distToDest / driverRouteDist) * 100);
-    
+
     // Detour logic: driver goes to passenger -> destination -> final destination
     const totalDetourDist = distToPassenger + passRouteDist + distToDest;
     const isRouteMatch = totalDetourDist <= (driverRouteDist * 1.5);
 
     return {
-        isMatch: destinationMatchPercentage >= 70 || isRouteMatch,
+        isMatch: destinationMatchPercentage >= 5,
         percentage: destinationMatchPercentage,
         detourDist: totalDetourDist,
         pickupDist: distToPassenger
@@ -113,4 +113,36 @@ export const findNearestUser = <T extends { currentLocation?: MaybeCoords }>(use
     }
 
     return nearest;
+};
+
+/**
+ * Calculates fare based on distance:
+ * - 10 Rs for up to 2.5 km
+ * - 2 Rs per km for additional distance over 2.5 km
+ * @param distanceKm Distance in kilometers
+ * @returns Fare in Rupees (rounded to 2 decimal places)
+ */
+export const calculateFare = (distanceKm: number): number => {
+    if (!distanceKm || isNaN(distanceKm)) return 10;
+    if (distanceKm <= 2.5) {
+        return 10;
+    } else {
+        return Number((10 + (distanceKm - 2.5) * 2).toFixed(2));
+    }
+};
+
+/**
+ * Rounds a fare value to the nearest multiple of 5:
+ * - If remainder of value % 5 is < 3, round down to the nearest multiple of 5.
+ * - If remainder of value % 5 is >= 3, round up to the nearest multiple of 5.
+ * @param value Price value to round
+ * @returns Rounded value
+ */
+export const roundToNearestFive = (value: number): number => {
+    const rem = value % 5;
+    if (rem < 3) {
+        return Math.floor(value / 5) * 5;
+    } else {
+        return Math.ceil(value / 5) * 5;
+    }
 };

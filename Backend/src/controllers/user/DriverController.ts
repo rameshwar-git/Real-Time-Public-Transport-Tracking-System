@@ -4,6 +4,7 @@ import VehicleModel from '@/models/vehicles/VehicleModel';
 import { TripModel } from '@/models/trip/TripModel';
 import { createDriverLocation } from '@/controllers/location/LocationController';
 import { createVehicle } from '@/controllers/vehicle/VehicleController';
+import { calculateFare } from '@/utils/geometry';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { AuthRequest } from "@/middleware/verifyToken";
@@ -134,14 +135,14 @@ export const getDriverEarnings = async (req: AuthRequest, res: Response) => {
             trip.endDate && new Date(trip.endDate) >= weekAgo
         );
 
-        const weeklyEarnings = weeklyTrips.length * 150; // Assume ₹150 per trip
-        const totalEarnings = completedTrips.length * 150;
-
+        const weeklyEarnings = weeklyTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
+        const totalEarnings = completedTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
+ 
         const lastWeekTrips = completedTrips.filter(trip => {
             const twoWeeksAgo = new Date(weekAgo.getTime() - 7 * 24 * 60 * 60 * 1000);
             return trip.endDate && new Date(trip.endDate) < weekAgo && new Date(trip.endDate) >= twoWeeksAgo;
         });
-        const lastWeekEarnings = lastWeekTrips.length * 150;
+        const lastWeekEarnings = lastWeekTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
         const weeklyChange = lastWeekEarnings > 0
             ? ((weeklyEarnings - lastWeekEarnings) / lastWeekEarnings * 100).toFixed(1)
             : 0;
@@ -188,7 +189,7 @@ export const getWeeklyEarnings = async (req: AuthRequest, res: Response) => {
             if (trip.endDate) {
                 const tripDate = new Date(trip.endDate);
                 const dayName = dayNames[tripDate.getDay()];
-                dailyEarnings[dayName] = (dailyEarnings[dayName] || 0) + 150;
+                dailyEarnings[dayName] = (dailyEarnings[dayName] || 0) + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0));
             }
         });
 
@@ -206,17 +207,22 @@ export const getWeeklyEarnings = async (req: AuthRequest, res: Response) => {
 export const getDriverProfile = async (req: AuthRequest, res: Response) => {
     try {
         const driverId = req.user!.id;
-        
+
         const driver = await DriverModel.findById(driverId).select('-password').lean();
         if (!driver) {
             return res.status(404).json({ error: "Driver not found" });
         }
 
         const vehicle = await VehicleModel.findOne({ driverId }).lean();
-        
+
+        const DriverLocationModel = require('@/models/location/DriverLocation').default;
+        const driverLocation = await DriverLocationModel.findOne({ userId: driverId }).lean();
+        const lastDestination = driverLocation?.destination || null;
+
         return res.status(200).json({
             driver,
-            vehicle: vehicle || null
+            vehicle: vehicle || null,
+            lastDestination
         });
     } catch (err: any) {
         return res.status(500).json({ error: err.message });
@@ -242,6 +248,36 @@ export const updateDriverProfile = async (req: AuthRequest, res: Response) => {
         }
 
         return res.status(200).json({ message: "Profile updated successfully" });
+    } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+export const getActiveDriverTrips = async (req: AuthRequest, res: Response) => {
+    try {
+        const driverId = req.user!.id;
+        if (!driverId) {
+            return res.status(400).json({ error: "Driver ID is required" });
+        }
+
+        const activeTrips = await TripModel.find({
+            driverId,
+            status: { $in: ['scheduled', 'in_progress'] }
+        }).lean();
+
+        const formattedTrips = activeTrips.map(trip => ({
+            tripId: trip._id,
+            passengerId: trip.passengerId,
+            passengerName: trip.passengerName,
+            origin: trip.startLocation,
+            destination: trip.destination,
+            status: trip.status,
+            estimatedDistance: (trip as any).estimatedDistance,
+            estimatedDuration: (trip as any).estimatedDuration,
+            fare: (trip as any).fare !== undefined ? (trip as any).fare : calculateFare((trip as any).estimatedDistance || 0)
+        }));
+
+        return res.status(200).json(formattedTrips);
     } catch (err: any) {
         return res.status(500).json({ error: err.message });
     }

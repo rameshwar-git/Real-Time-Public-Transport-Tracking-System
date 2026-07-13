@@ -2,6 +2,7 @@ import { env } from "@/config/env";
 import { authFetch } from "@/utils/authFetch";
 
 const API_BASE = env.API_URL;
+
 export const fetchAllLocations = async (token?: string | null, origin?: { latitude: number, longitude: number } | null) => {
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -71,5 +72,11 @@ export const updateDriverProfile = async (data: any) => {
         body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to update driver profile");
+    return await res.json();
+};
+
+export const getActiveDriverTrips = async () => {
+    const res = await authFetch("/drivers/active-trips");
+    if (!res.ok) throw new Error("Failed to fetch active trips");
     return await res.json();
 };

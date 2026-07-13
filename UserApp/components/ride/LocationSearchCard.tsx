@@ -4,14 +4,20 @@ import { LocationSearchBox } from '@/components/map/LocationSearchBox';
 
 interface LocationSearchCardProps {
     onSelect: (coords: any) => void;
+    onClear?: () => void;
+    initialQuery?: string;
+    onChooseOnMap?: () => void;
 }
 
-export const LocationSearchCard = ({ onSelect }: LocationSearchCardProps) => {
+export const LocationSearchCard = ({ onSelect, onClear, initialQuery, onChooseOnMap }: LocationSearchCardProps) => {
     return (
         <View style={styles.searchCard}>
             <LocationSearchBox
                 placeholder="Destination"
                 onSelect={onSelect}
+                onClear={onClear}
+                initialQuery={initialQuery}
+                onChooseOnMap={onChooseOnMap}
             />
         </View>
     );

@@ -41,6 +41,7 @@ export const putTripDriver = async (req: Request, res: Response) => {
 
 import DriverLocationModel from '@/models/location/DriverLocation';
 import VehicleModel from '@/models/vehicles/VehicleModel';
+import DriverModel from '@/models/users/UserDriverModel';
 import { calculateRouteMatch } from '@/utils/geometry';
 
 export const findDrivers = async (req: Request, res: Response) => {
@@ -56,15 +57,18 @@ export const findDrivers = async (req: Request, res: Response) => {
             'destination.latitude': { $exists: true } 
         }).lean();
 
+        console.log(`[findDrivers] Passenger origin: ${JSON.stringify(origin)}, dest: ${JSON.stringify(destination)}`);
+        console.log(`[findDrivers] Found ${onlineDrivers.length} on-duty drivers with destinations`);
+
         const validDrivers = [];
         for (const driver of onlineDrivers) {
-            if (!driver.vehicleId) continue;
+            if (!driver.vehicleId) { console.log(`[findDrivers] Driver ${driver.userId}: SKIP (no vehicleId)`); continue; }
             
             const vehicle = await VehicleModel.findById(driver.vehicleId).lean();
-            if (!vehicle) continue;
+            if (!vehicle) { console.log(`[findDrivers] Driver ${driver.userId}: SKIP (vehicle not found)`); continue; }
             
             const seats: number = (vehicle.availableSeats != null) ? Number(vehicle.availableSeats) : Number(vehicle.capacity || 4);
-            if (seats <= 0) continue;
+            if (seats <= 0) { console.log(`[findDrivers] Driver ${driver.userId}: SKIP (no seats)`); continue; }
 
             const match = calculateRouteMatch(
                 driver.currentLocation as any, 
@@ -73,14 +77,47 @@ export const findDrivers = async (req: Request, res: Response) => {
                 destination
             );
 
+            console.log(`[findDrivers] Driver ${driver.userId}: percentage=${match.percentage.toFixed(1)}%, pickupDist=${match.pickupDist.toFixed(2)}km, isMatch=${match.isMatch}`);
+
             if (match.pickupDist <= 2 && match.isMatch) {
-                validDrivers.push({ ...driver, pickupDist: match.pickupDist, availableSeats: seats });
+                const driverInfo = await DriverModel.findById(driver.userId).lean();
+                const driverName = driverInfo ? driverInfo.name : 'Unknown Driver';
+                const driverPhone = driverInfo ? driverInfo.phone : '';
+
+                validDrivers.push({ 
+                    ...driver, 
+                    pickupDist: match.pickupDist, 
+                    routeMatchPercentage: match.percentage,
+                    availableSeats: seats,
+                    driverDetails: {
+                        name: driverName,
+                        phone: driverPhone
+                    },
+                    vehicleDetails: {
+                        vehicleType: vehicle.vehicleType,
+                        vehicleModel: vehicle.vehicleModel,
+                        vehicleNumber: vehicle.vehicleNumber,
+                        color: vehicle.color
+                    }
+                });
             }
         }
 
-        validDrivers.sort((a, b) => a.pickupDist - b.pickupDist);
+        console.log(`[findDrivers] Result: ${validDrivers.length} valid drivers`);
+        
+        // Sort by RouteMatch percentage (descending) first, then by pickup distance (ascending)
+        validDrivers.sort((a, b) => {
+            if (b.routeMatchPercentage !== a.routeMatchPercentage) {
+                return b.routeMatchPercentage - a.routeMatchPercentage;
+            }
+            return a.pickupDist - b.pickupDist;
+        });
 
-        res.status(200).json(validDrivers);
+        // Limit to top 10 drivers
+        const top10Drivers = validDrivers.slice(0, 10);
+        console.log(`[findDrivers] Returning top ${top10Drivers.length} drivers`);
+
+        res.status(200).json(top10Drivers);
     } catch (err: any) {
         res.status(500).json({ error: err.message });
     }

@@ -86,5 +86,7 @@ export const useDriverSocketEvents = ({
             socket.off("otp-failed", handleOtpFailed);
             if (requestTimeoutRef.current) clearTimeout(requestTimeoutRef.current);
         };
-    }, [isOnDuty, socket, setIncomingRequest, setActiveTrips, requestTimeoutRef, userId]);
+        // socket, isOnDuty, userId are the only values that should trigger re-registration.
+        // setIncomingRequest and setActiveTrips are stable React dispatch refs.
+    }, [isOnDuty, socket, userId]);
 };
