@@ -13,8 +13,9 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ActivityIndicator } from "react-native-paper";
 import { Mail, Lock, Eye, EyeOff, Navigation } from "lucide-react-native";
-import { handleSignIn, validateSession } from "@/hooks/auth/auth";
+import { handleSignIn } from "@/hooks/auth/auth";
 import { connectSocket } from "@/services/socket";
+import { getToken } from "@/services/storageService";
 
 export default function SigninScreen() {
   const [email, setEmail] = useState("");
@@ -42,12 +43,12 @@ export default function SigninScreen() {
     }
   };
 
-  // AUTO LOGIN
+  // AUTO LOGIN — if token exists, go straight to tabs
   useEffect(() => {
     const bootstrap = async () => {
-      const status = await validateSession();
+      const token = await getToken();
 
-      if (status === "VALID") {
+      if (token) {
         connectSocket();
         router.replace("/(tabs)");
         return;

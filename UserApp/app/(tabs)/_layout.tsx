@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { connectSocket, disconnectSocket } from "@/services/socket";
 import { AppState, View, ActivityIndicator, Platform } from "react-native";
 import { getToken } from "@/services/storageService";
-import { validateSession } from "@/hooks/auth/auth";
 
 export default function TabLayout() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -20,14 +19,9 @@ export default function TabLayout() {
           return;
         }
 
-        const sessionStatus = await validateSession();
-        if (sessionStatus === "VALID") {
-          setIsAuthenticated(true);
-          connectSocket(); // connect when app starts
-        } else {
-          setIsAuthenticated(false);
-          router.replace("/auth/signin");
-        }
+        // Token exists in SecureStore — user is signed in until they log out
+        setIsAuthenticated(true);
+        connectSocket();
       } catch (error) {
         console.error("Auth check failed:", error);
         setIsAuthenticated(false);

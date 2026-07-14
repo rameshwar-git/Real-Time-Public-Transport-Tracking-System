@@ -137,7 +137,7 @@ export const getDriverEarnings = async (req: AuthRequest, res: Response) => {
 
         const weeklyEarnings = weeklyTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
         const totalEarnings = completedTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
- 
+
         const lastWeekTrips = completedTrips.filter(trip => {
             const twoWeeksAgo = new Date(weekAgo.getTime() - 7 * 24 * 60 * 60 * 1000);
             return trip.endDate && new Date(trip.endDate) < weekAgo && new Date(trip.endDate) >= twoWeeksAgo;

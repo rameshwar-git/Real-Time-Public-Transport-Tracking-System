@@ -1,10 +1,10 @@
 import express from "express";
-import { 
-    createDriver, 
-    setDriverVehicle, 
-    validateDriverLogin, 
-    validateDriver, 
-    getDriverEarnings, 
+import {
+    createDriver,
+    setDriverVehicle,
+    validateDriverLogin,
+    validateDriver,
+    getDriverEarnings,
     getWeeklyEarnings,
     getDriverProfile,
     updateDriverProfile,

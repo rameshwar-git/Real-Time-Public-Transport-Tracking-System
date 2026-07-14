@@ -308,7 +308,7 @@ export default function initSocket(io: any) {
         });
 
         socket.on("update-location", async (data: any) => {
-            const { userId, currentLocation } = data;
+            const { userId, currentLocation, destination, status } = data;
             if (!userId || !currentLocation) return;
 
             // Always store the latest known location for this user
@@ -316,6 +316,21 @@ export default function initSocket(io: any) {
                 latitude: currentLocation.latitude,
                 longitude: currentLocation.longitude,
             });
+
+            // Persist driver location + destination + status to DB so findDrivers can query it
+            try {
+                const DriverLocationModel = require('@/models/location/DriverLocation').default;
+                const updateFields: any = { currentLocation, timestamp: new Date() };
+                if (destination !== undefined) updateFields.destination = destination;
+                if (status !== undefined) updateFields.status = status;
+                await DriverLocationModel.findOneAndUpdate(
+                    { userId },
+                    updateFields,
+                    { upsert: false }
+                );
+            } catch (err) {
+                console.error('[update-location] Error persisting driver location to DB:', err);
+            }
 
             try {
                 const { TripModel } = require('@/models/trip/TripModel');

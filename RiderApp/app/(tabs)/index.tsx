@@ -45,7 +45,9 @@ export default function DriverDashboard() {
     const [mapComponents, setMapComponents] = useState<any>(null);
     const mapRef = useRef<any>(null);
 
-    const { startSharing, stopSharing } = useLocationSharing(userId);
+    const { startSharing, stopSharing } = useLocationSharing(userId, (coords) => {
+        setOrigin(coords);
+    });
     const mapHeight = Math.round(Dimensions.get("window").height);
 
     useEffect(() => {

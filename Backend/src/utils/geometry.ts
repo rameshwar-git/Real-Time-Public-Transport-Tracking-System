@@ -70,21 +70,32 @@ export const calculateRouteMatch = (
     passOrigin: Coords,
     passDest: Coords
 ) => {
-    const driverRouteDist = getDistance(driverLoc.latitude, driverLoc.longitude, driverDest.latitude, driverDest.longitude) || 1;
+    const driverRouteDist = getDistance(driverLoc.latitude, driverLoc.longitude, driverDest.latitude, driverDest.longitude) || 0.1;
     const passRouteDist = getDistance(passOrigin.latitude, passOrigin.longitude, passDest.latitude, passDest.longitude);
 
     const distToPassenger = getDistance(driverLoc.latitude, driverLoc.longitude, passOrigin.latitude, passOrigin.longitude);
     const distToDest = getDistance(driverDest.latitude, driverDest.longitude, passDest.latitude, passDest.longitude);
 
-    // Percentage of driver route overlap
-    const destinationMatchPercentage = Math.max(0, 100 - (distToDest / driverRouteDist) * 100);
+    // How close are the two destinations relative to the longer route?
+    const longerRoute = Math.max(driverRouteDist, passRouteDist, 0.1);
+    const destinationMatchPercentage = Math.max(0, 100 - (distToDest / longerRoute) * 100);
 
-    // Detour logic: driver goes to passenger -> destination -> final destination
+    // Detour logic: driver goes to passenger -> passenger dest -> driver dest
     const totalDetourDist = distToPassenger + passRouteDist + distToDest;
-    const isRouteMatch = totalDetourDist <= (driverRouteDist * 1.5);
+    const isRouteMatch = totalDetourDist <= (driverRouteDist * 1.8); // Allow up to 80% detour
+
+    // Direction check: are driver and passenger heading in roughly the same direction?
+    const driverBearing = Math.atan2(driverDest.longitude - driverLoc.longitude, driverDest.latitude - driverLoc.latitude);
+    const passBearing = Math.atan2(passDest.longitude - passOrigin.longitude, passDest.latitude - passOrigin.latitude);
+    let bearingDiff = Math.abs(driverBearing - passBearing) * (180 / Math.PI);
+    if (bearingDiff > 180) bearingDiff = 360 - bearingDiff;
+    const isSameDirection = bearingDiff < 90; // Within 90 degrees
+
+    // Match if: destinations are close (>10%) AND heading same direction OR detour is small OR heading same direction with close destinations
+    const isMatch = (destinationMatchPercentage >= 10 && isSameDirection) || isRouteMatch || (isSameDirection && distToDest <= 3);
 
     return {
-        isMatch: destinationMatchPercentage >= 5,
+        isMatch,
         percentage: destinationMatchPercentage,
         detourDist: totalDetourDist,
         pickupDist: distToPassenger

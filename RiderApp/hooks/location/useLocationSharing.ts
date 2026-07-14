@@ -10,7 +10,7 @@ import { getDistance } from "@/utils/geometry";
 let globalLocationInterval: any = null;
 let globalLastStatus: string | null = null;
 
-export const useLocationSharing = (userId: string | null) => {
+export const useLocationSharing = (userId: string | null, onLocationUpdate?: (coords: { latitude: number, longitude: number }) => void) => {
     const hookId = useRef(Math.random().toString(36).substring(7));
     const lastLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
     const lastStatusRef = useRef<string | null>(null);
@@ -43,6 +43,11 @@ export const useLocationSharing = (userId: string | null) => {
                     latitude: loc.latitude,
                     longitude: loc.longitude,
                 };
+
+                // Provide updated coordinates back to the caller
+                if (onLocationUpdate) {
+                    onLocationUpdate(coords);
+                }
 
                 let hasLocationChanged = !lastLocationRef.current;
                 if (lastLocationRef.current) {
