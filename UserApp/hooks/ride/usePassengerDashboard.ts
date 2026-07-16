@@ -42,13 +42,17 @@ export function usePassengerDashboard() {
     const currentDriverIndexRef = useRef<number>(0);
     const searchTimeoutRef = useRef<any>(null);
 
-    const { locations, setLocations } = useLiveLocations(origin);
+    const { locations, setLocations, startPolling, stopPolling } = useLiveLocations(origin);
 
     const [assignedDriverId, setAssignedDriverId] = useState<string | null>(null);
     const [mapComponents, setMapComponents] = useState<any>(null);
     const mapRef = useRef<any>(null);
 
     const { startSharing, stopSharing } = useLocationSharing(userId);
+
+    // Route refresh key — increments every 10 seconds during active trips
+    // to force MapViewDirections to re-fetch the route from Google
+    const [routeRefreshKey, setRouteRefreshKey] = useState(0);
 
     // --- Effects ---
 
@@ -144,6 +148,23 @@ export function usePassengerDashboard() {
         }
     }, [userId]);
 
+    // Start/stop location polling & route refresh based on active trip
+    useEffect(() => {
+        const hasActiveTrip = !!assignedDriverId && (tripStatus === 'scheduled' || tripStatus === 'in_progress');
+        if (hasActiveTrip) {
+            startPolling();
+            const routeInterval = setInterval(() => {
+                setRouteRefreshKey(prev => prev + 1);
+            }, 10000);
+            return () => {
+                stopPolling();
+                clearInterval(routeInterval);
+            };
+        } else {
+            stopPolling();
+        }
+    }, [assignedDriverId, tripStatus]);
+
     useEffect(() => {
         if (userId && origin) {
             // Share location during active trip too (for proximity auto-complete)
@@ -219,7 +240,23 @@ export function usePassengerDashboard() {
         if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
 
+    const handleDismissReceipt = () => {
+        setAssignedDriverId(null);
+        setDriverDetails(null);
+        setTripId(null);
+        setOtp(null);
+        setTripStatus(null);
+        setIsConfirmed(false);
+        setDestination(null);
+        setDestinationText("");
+        setRouteDetails(null);
+    };
+
     const handleCancelTrip = () => {
+        if (tripStatus === 'in_progress') {
+            Alert.alert("Cannot Cancel", "This trip is already in progress and cannot be canceled.");
+            return;
+        }
         Alert.alert(
             "Cancel Trip",
             "Are you sure you want to cancel this trip? Your driver is already en route.",
@@ -235,18 +272,19 @@ export function usePassengerDashboard() {
                         if (tripId) {
                             socket.emit('cancel-trip', { tripId, canceledBy: 'passenger' });
                         }
-                        setIsConfirmed(false);
-                        setIsSearching(false);
+
+                        // Optimistic immediate UI reset so the user isn't stuck
+                        // if the server's "trip-canceled" echo is delayed or lost
                         setAssignedDriverId(null);
                         setDriverDetails(null);
                         setTripId(null);
                         setOtp(null);
                         setTripStatus(null);
+                        setIsConfirmed(false);
+                        setIsSearching(false);
                         setDestination(null);
                         setDestinationText("");
                         setRouteDetails(null);
-                        setMatchedDrivers([]);
-                        setCurrentDriverIndex(0);
                         stopSharing();
                         if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
                     }
@@ -348,6 +386,7 @@ export function usePassengerDashboard() {
         assignedDriverId,
         mapComponents,
         mapRef,
+        routeRefreshKey,
 
         // Setters needed by UI
         setSelectedVehicleType,
@@ -362,6 +401,7 @@ export function usePassengerDashboard() {
         handleConfirmRide,
         handleCancelSearch,
         handleCancelTrip,
+        handleDismissReceipt,
         handleDestinationSelect,
         handleClearRoute,
         handleChooseOnMap,

@@ -31,6 +31,8 @@ import {
 
 import { env } from "@/config/env";
 import { UserData } from "@/datatypes/userdata";
+import { handleSignIn } from "@/hooks/auth/auth";
+import { connectSocket } from "@/services/socket";
 
 const SignUpScreen: React.FC = () => {
   const [step, setStep] = useState(1);
@@ -138,8 +140,18 @@ const SignUpScreen: React.FC = () => {
 
       await AsyncStorage.setItem("userId", data.userId);
 
-      Alert.alert("Success", "Account created successfully! Please sign in.");
-      router.replace("/auth/signin");
+      // Auto-signin: login the user directly after registration
+      const signInResult = await handleSignIn({
+        email: userData.email,
+        password: userData.password,
+      });
+
+      if (signInResult.status === "SUCCESS") {
+        connectSocket();
+      } else {
+        Alert.alert("Success", "Account created successfully! Please sign in.");
+        router.replace("/auth/signin");
+      }
     } catch (error: any) {
       setRegistering(false);
       console.error(error);

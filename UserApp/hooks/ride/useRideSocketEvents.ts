@@ -12,7 +12,6 @@ interface UseRideSocketEventsProps {
     setAssignedDriverId: (id: string | null) => void;
     setDriverDetails: (details: any) => void;
     setTripId: (id: string | null) => void;
-    setOtp: (otp: string | null) => void;
     setTripStatus: (status: string | null) => void;
     setIsSearching: (isSearching: boolean) => void;
     setIsConfirmed: (isConfirmed: boolean) => void;
@@ -35,7 +34,6 @@ export const useRideSocketEvents = ({
     setAssignedDriverId,
     setDriverDetails,
     setTripId,
-    setOtp,
     setTripStatus,
     setIsSearching,
     setIsConfirmed,
@@ -46,6 +44,14 @@ export const useRideSocketEvents = ({
     assignedDriverId,
     setLocations
 }: UseRideSocketEventsProps) => {
+    // Use refs for callback props that change every render
+    // so the useEffect doesn't constantly re-register listeners
+    const requestNextDriverRef = useRef(requestNextDriver);
+    const stopSharingRef = useRef(stopSharing);
+
+    useEffect(() => { requestNextDriverRef.current = requestNextDriver; }, [requestNextDriver]);
+    useEffect(() => { stopSharingRef.current = stopSharing; }, [stopSharing]);
+
     useEffect(() => {
         // Only require userId — origin and destination may be recovered asynchronously
         if (!userId) return;
@@ -68,7 +74,6 @@ export const useRideSocketEvents = ({
                 fare: data.fare,
             });
             setTripId(data.tripId);
-            setOtp(data.otp);
             setTripStatus('scheduled');
             setIsSearching(false);
             acceptedVehicleTypeRef.current = data.vehicleType || null;
@@ -76,40 +81,33 @@ export const useRideSocketEvents = ({
 
         const onRideRejected = (_data: any) => {
             if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-            requestNextDriver(currentDriverIndexRef.current + 1);
+            requestNextDriverRef.current(currentDriverIndexRef.current + 1);
         };
 
-        const onTripStarted = (_data: any) => {
+        const onTripStarted = (data: any) => {
+            console.log('[UserApp] trip-started event received:', data);
             setTripStatus('in_progress');
         };
 
         const onTripCompleted = (_data: any) => {
-            Alert.alert("Trip Completed!", "You have reached your destination.");
-            setAssignedDriverId(null);
-            setDriverDetails(null);
-            setTripId(null);
-            setOtp(null);
-            setTripStatus(null);
-            setIsConfirmed(false);
-            setDestination(null);
-            setDestinationText("");
-            setRouteDetails(null);
-            stopSharing();
+            setTripStatus('completed');
+            stopSharingRef.current();
         };
 
         const onTripCanceled = (data: any) => {
-            Alert.alert("Trip Canceled", data.reason);
+            if (data.reason !== 'Passenger canceled the trip') {
+                Alert.alert("Trip Canceled", data.reason);
+            }
             setAssignedDriverId(null);
             setDriverDetails(null);
             setTripId(null);
-            setOtp(null);
             setTripStatus(null);
             setIsConfirmed(false);
             setIsSearching(false);
             setDestination(null);
             setDestinationText("");
             setRouteDetails(null);
-            stopSharing();
+            stopSharingRef.current();
             if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
         };
 
@@ -130,11 +128,16 @@ export const useRideSocketEvents = ({
             }
         };
 
+        const onTripCancelError = (data: any) => {
+            Alert.alert("Cancellation Failed", data.message || "Cannot cancel this trip.");
+        };
+
         socket.on("ride-accepted", onRideAccepted);
         socket.on("ride-rejected", onRideRejected);
         socket.on("trip-started", onTripStarted);
         socket.on("trip-completed", onTripCompleted);
         socket.on("trip-canceled", onTripCanceled);
+        socket.on("trip-cancel-error", onTripCancelError);
         socket.on("driver-location-updated", onDriverLocationUpdated);
 
         return () => {
@@ -143,7 +146,8 @@ export const useRideSocketEvents = ({
             socket.off("trip-started", onTripStarted);
             socket.off("trip-completed", onTripCompleted);
             socket.off("trip-canceled", onTripCanceled);
+            socket.off("trip-cancel-error", onTripCancelError);
             socket.off("driver-location-updated", onDriverLocationUpdated);
         };
-    }, [userId, socket, requestNextDriver, stopSharing, assignedDriverId, setLocations]);
+    }, [userId, socket, assignedDriverId, setLocations]);
 };

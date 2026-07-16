@@ -8,22 +8,32 @@ import { connectedUsers, emitToUser } from '../connectionManager';
  */
 export function registerTripHandlers(io: any, socket: any, userId: string) {
 
-    socket.on("verify-otp", async (data: any) => {
-        const { tripId, otp } = data;
-        const { TripModel } = require('@/models/trip/TripModel');
-        const trip = await TripModel.findById(tripId);
+    socket.on("start-trip", async (data: any) => {
+        const { tripId } = data;
+        console.log(`[start-trip] Driver initiated start-trip for tripId: ${tripId}`);
+        try {
+            const { TripModel } = require('@/models/trip/TripModel');
+            const trip = await TripModel.findById(tripId);
 
-        if (trip && trip.otp === otp) {
+            if (!trip) {
+                console.error(`[start-trip] Trip not found: ${tripId}`);
+                socket.emit("trip-start-error", { message: "Trip not found." });
+                return;
+            }
+
+            console.log(`[start-trip] Trip found. passengerId: ${trip.passengerId}, current status: ${trip.status}`);
+
             trip.status = 'in_progress';
             await trip.save();
 
-            emitToUser(io, trip.passengerId.toString(), "trip-started", { tripId });
+            const passengerId = trip.passengerId.toString();
+            const emitted = emitToUser(io, passengerId, "trip-started", { tripId });
+            console.log(`[start-trip] Emitted trip-started to passenger ${passengerId}: ${emitted ? 'SUCCESS' : 'FAILED (passenger offline)'}`);
 
-            // Confirm to the driver that OTP was verified
-            socket.emit("otp-verified", { tripId, status: 'in_progress' });
-        } else {
-            // Notify the driver that OTP verification failed
-            socket.emit("otp-failed", { tripId, message: "Invalid OTP. Please try again." });
+            // Confirm to the driver that trip was started
+            socket.emit("trip-started", { tripId, status: 'in_progress' });
+        } catch (err) {
+            console.error(`[start-trip] Error:`, err);
         }
     });
 
@@ -55,22 +65,31 @@ export function registerTripHandlers(io: any, socket: any, userId: string) {
         const trip = await TripModel.findById(tripId);
 
         if (trip && trip.status !== 'completed' && trip.status !== 'canceled') {
+            if (trip.status === 'in_progress' && canceledBy === 'passenger') {
+                socket.emit("trip-cancel-error", { message: "Cannot cancel a trip that is already in progress." });
+                return;
+            }
+
             trip.status = 'canceled';
             trip.endDate = new Date();
             await trip.save();
 
             // Restore seat
-            const VehicleModel = require('@/models/vehicles/VehicleModel').default;
-            const vehicle = await VehicleModel.findById(trip.vehicleId);
-            if (vehicle) {
-                const currentSeats = vehicle.availableSeats !== undefined ? vehicle.availableSeats : vehicle.capacity;
-                await VehicleModel.findByIdAndUpdate(trip.vehicleId, { availableSeats: currentSeats + 1 });
+            if (trip.vehicleId) {
+                const VehicleModel = require('@/models/vehicles/VehicleModel').default;
+                const vehicle = await VehicleModel.findById(trip.vehicleId);
+                if (vehicle) {
+                    const currentSeats = vehicle.availableSeats !== undefined ? vehicle.availableSeats : vehicle.capacity;
+                    await VehicleModel.findByIdAndUpdate(trip.vehicleId, { availableSeats: currentSeats + 1 });
+                }
             }
 
-            if (canceledBy === 'driver') {
-                emitToUser(io, trip.passengerId.toString(), "trip-canceled", { tripId, reason: 'Driver canceled the trip' });
-            } else if (canceledBy === 'passenger') {
-                emitToUser(io, trip.driverId.toString(), "trip-canceled", { tripId, reason: 'Passenger canceled the trip' });
+            // Notify both parties
+            const reason = canceledBy === 'driver' ? 'Driver canceled the trip' : 'Passenger canceled the trip';
+            emitToUser(io, trip.passengerId.toString(), "trip-canceled", { tripId, reason });
+            emitToUser(io, trip.driverId.toString(), "trip-canceled", { tripId, reason });
+
+            if (canceledBy === 'passenger') {
                 try {
                     const DriverLocationModel = require('@/models/location/DriverLocation').default;
                     await DriverLocationModel.findOneAndUpdate(

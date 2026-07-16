@@ -149,10 +149,10 @@ export default function RiderDashboard() {
             </View>
             <View style={[styles.statItem, styles.divider]}>
               <View style={styles.changeContainer}>
-                <MaterialCommunityIcons 
-                  name={earnings.weeklyChange >= 0 ? "trending-up" : "trending-down"} 
-                  size={16} 
-                  color={earnings.weeklyChange >= 0 ? "#10B981" : "#EF4444"} 
+                <MaterialCommunityIcons
+                  name={earnings.weeklyChange >= 0 ? "trending-up" : "trending-down"}
+                  size={16}
+                  color={earnings.weeklyChange >= 0 ? "#10B981" : "#EF4444"}
                 />
                 <Text style={[styles.changeText, { color: earnings.weeklyChange >= 0 ? "#10B981" : "#EF4444" }]}>
                   {earnings.weeklyChange >= 0 ? `+${earnings.weeklyChange}%` : `${earnings.weeklyChange}%`}

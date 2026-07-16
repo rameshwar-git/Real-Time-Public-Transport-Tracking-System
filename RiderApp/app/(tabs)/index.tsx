@@ -7,10 +7,10 @@ import { useDriverDashboard } from "@/hooks/driver/useDriverDashboard";
 import { MapViewComponent } from "@components/map/MapViewComponent";
 import { DestinationSearch } from "@components/map/DestinationSearch";
 import { IncomingRequestCard } from "@/components/driver/IncomingRequestCard";
-import { OtpVerificationModal } from "@/components/driver/OtpVerificationModal";
 import { ActiveTripsList } from "@/components/driver/ActiveTripsList";
 import { DutyToggle } from "@/components/driver/DutyToggle";
 import { PinLocationCard } from "@/components/driver/PinLocationCard";
+import { OtpVerificationModal } from "@/components/driver/OtpVerificationModal";
 
 export default function DriverDashboard() {
     const {
@@ -23,19 +23,16 @@ export default function DriverDashboard() {
         incomingRequest,
         isChoosingOnMap,
         pinAddress,
-        otpModalVisible,
-        currentOtpTrip,
-        otpInput,
         mapComponents,
         mapRef,
         origin,
         mapRegion,
-        setOtpInput,
         setIsChoosingOnMap,
         handleAcceptRide,
         handleRejectRide,
         toggleDutyStatus,
-        verifyOtp,
+        startTrip,
+        completeTrip,
         handleCancelTrip,
         handleChooseOnMap,
         handleConfirmPinLocation,
@@ -43,8 +40,6 @@ export default function DriverDashboard() {
         handleDestinationSelect,
         handleDestinationSearchFocus,
         handleDestinationPress,
-        openOtpModal,
-        closeOtpModal,
     } = useDriverDashboard();
 
     const MapView = mapComponents?.MapView;
@@ -54,7 +49,6 @@ export default function DriverDashboard() {
     return (
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
             <View style={styles.container}>
-                {/* Floating Top Bar (Destination Search) */}
                 {!isChoosingOnMap && (
                     <View style={styles.unifiedTopBar}>
                         <View style={styles.searchWrapper}>
@@ -125,21 +119,15 @@ export default function DriverDashboard() {
                     />
                 )}
 
-                <OtpVerificationModal
-                    visible={otpModalVisible}
-                    passengerName={currentOtpTrip?.passengerName || ''}
-                    otpInput={otpInput}
-                    setOtpInput={setOtpInput}
-                    onCancel={closeOtpModal}
-                    onVerify={verifyOtp}
-                />
+
 
                 {activeTrips.length > 0 && (
                     <View style={styles.bottomView}>
                         <ActiveTripsList
                             activeTrips={activeTrips}
-                            onOpenOtp={openOtpModal}
+                            onStartTrip={startTrip}
                             onCancelTrip={handleCancelTrip}
+                            onCompleteTrip={completeTrip}
                         />
                     </View>
                 )}

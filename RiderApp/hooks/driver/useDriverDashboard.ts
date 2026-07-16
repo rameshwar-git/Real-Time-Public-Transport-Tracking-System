@@ -31,9 +31,6 @@ export function useDriverDashboard() {
     const [pinCoords, setPinCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
     const requestTimeoutRef = useRef<any>(null);
-    const [otpModalVisible, setOtpModalVisible] = useState(false);
-    const [currentOtpTrip, setCurrentOtpTrip] = useState<any>(null);
-    const [otpInput, setOtpInput] = useState('');
     const [mapComponents, setMapComponents] = useState<any>(null);
     const mapRef = useRef<any>(null);
 
@@ -204,14 +201,16 @@ export function useDriverDashboard() {
         }
     };
 
-    const verifyOtp = () => {
-        if (!currentOtpTrip || !otpInput) return;
-        socket.emit("verify-otp", { tripId: currentOtpTrip.tripId, otp: otpInput });
+    const startTrip = (trip: any) => {
+        if (!trip || !trip.tripId) return;
+        socket.emit("start-trip", { tripId: trip.tripId });
+        setActiveTrips(prev => prev.map(t => t.tripId === trip.tripId ? { ...t, status: 'in_progress' } : t));
+    };
 
-        setActiveTrips(prev => prev.map(t => t.tripId === currentOtpTrip.tripId ? { ...t, status: 'in_progress' } : t));
-        setOtpModalVisible(false);
-        setOtpInput('');
-        setCurrentOtpTrip(null);
+    const completeTrip = (trip: any) => {
+        if (!trip || !trip.tripId) return;
+        socket.emit("dropoff-passenger", { tripId: trip.tripId });
+        setActiveTrips(prev => prev.filter(t => t.tripId !== trip.tripId));
     };
 
     const handleCancelTrip = (trip: any) => {
@@ -311,14 +310,7 @@ export function useDriverDashboard() {
         }
     };
 
-    const openOtpModal = (trip: any) => {
-        setCurrentOtpTrip(trip);
-        setOtpModalVisible(true);
-    };
 
-    const closeOtpModal = () => {
-        setOtpModalVisible(false);
-    };
 
     return {
         // State
@@ -334,21 +326,16 @@ export function useDriverDashboard() {
         isChoosingOnMap,
         pinAddress,
         pinCoords,
-        otpModalVisible,
-        currentOtpTrip,
-        otpInput,
         mapComponents,
         mapRef,
 
         // Setters needed by UI
-        setOtpInput,
         setIsChoosingOnMap,
 
         // Handlers
         handleAcceptRide,
         handleRejectRide,
         toggleDutyStatus,
-        verifyOtp,
         handleCancelTrip,
         handleChooseOnMap,
         handleConfirmPinLocation,
@@ -356,7 +343,7 @@ export function useDriverDashboard() {
         handleDestinationSelect,
         handleDestinationSearchFocus,
         handleDestinationPress,
-        openOtpModal,
-        closeOtpModal,
+        startTrip,
+        completeTrip,
     };
 }

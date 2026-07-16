@@ -2,18 +2,23 @@ import 'dotenv/config';
 
 export default {
   expo: {
-    name: "RiderApp",
-    slug: "RiderApp",
+    name: "TrackMyRide",
+    slug: "TrackMyRide",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
+    splash: {
+      image: "./assets/images/splash-icon.png",
+      resizeMode: "contain",
+      backgroundColor: "#ffffff",
+    },
     scheme: "justintime",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
 
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.admin.dev.justintime.rider",
+      bundleIdentifier: "com.admin.dev.rider",
       config: {
         googleMaps: {
           apiKey: process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_MAP_API_KEY
@@ -25,7 +30,7 @@ export default {
     },
 
     android: {
-      package: "com.admin.dev.justintime.rider",
+      package: "com.admin.dev.rider",
       config: {
         googleMaps: {
           apiKey: process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_MAP_API_KEY
@@ -48,7 +53,7 @@ export default {
 
     web: {
       output: "static",
-      favicon: "./assets/images/favicon.png",
+      favicon: "./assets/images/icon.png",
     },
 
     plugins: [

@@ -1,11 +1,10 @@
 import { Tabs, router } from "expo-router";
 import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useState } from "react";
 import { connectSocket, disconnectSocket } from "@/services/socket";
 import { AppState, View, ActivityIndicator, Platform } from "react-native";
 import { getToken } from "@/services/storageService";
-import { validateSession } from "@/hooks/auth/auth";
 
 export default function TabLayout() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -20,14 +19,9 @@ export default function TabLayout() {
           return;
         }
 
-        const sessionStatus = await validateSession();
-        if (sessionStatus === "VALID") {
-          setIsAuthenticated(true);
-          connectSocket(); // connect when app starts
-        } else {
-          setIsAuthenticated(false);
-          router.replace("/auth/signin");
-        }
+        // Token exists in SecureStore — user is signed in until they log out
+        setIsAuthenticated(true);
+        connectSocket();
       } catch (error) {
         console.error("Auth check failed:", error);
         setIsAuthenticated(false);
@@ -87,7 +81,7 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="house.fill" color={color} />
+            <Ionicons size={28} name="home" color={color} />
           ),
         }}
       />
@@ -96,7 +90,7 @@ export default function TabLayout() {
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="paperplane.fill" color={color} />
+            <Ionicons size={28} name="paper-plane" color={color} />
           ),
         }}
       />
@@ -105,7 +99,7 @@ export default function TabLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person.fill" color={color} />
+            <Ionicons size={28} name="person" color={color} />
           ),
         }}
       />

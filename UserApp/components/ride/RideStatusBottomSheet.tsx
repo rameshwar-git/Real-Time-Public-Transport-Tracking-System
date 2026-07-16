@@ -1,11 +1,10 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, LayoutAnimation } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { getDistance } from '@/utils/geometry';
 
 interface RideStatusBottomSheetProps {
     tripStatus: string | null;
-    otp: string | null;
     driverDetails: {
         name?: string;
         phone?: string;
@@ -26,7 +25,6 @@ interface RideStatusBottomSheetProps {
 
 export const RideStatusBottomSheet = ({
     tripStatus,
-    otp,
     driverDetails,
     onCancelTrip,
     assignedDriverLocation,
@@ -34,6 +32,13 @@ export const RideStatusBottomSheet = ({
     destination,
     routeDetails
 }: RideStatusBottomSheetProps) => {
+
+    const [isExpanded, setIsExpanded] = useState(true);
+
+    const toggleExpanded = () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setIsExpanded(!isExpanded);
+    };
 
     // 1. Calculate Real-Time Distance & ETA
     let distanceKm: number | null = null;
@@ -70,8 +75,8 @@ export const RideStatusBottomSheet = ({
         etaMinutes = driverDetails.estimatedDuration;
     }
 
-    const formattedDistance = distanceKm !== null 
-        ? distanceKm < 1 
+    const formattedDistance = distanceKm !== null
+        ? distanceKm < 1
             ? `${Math.round(distanceKm * 1000)} m`
             : `${distanceKm.toFixed(1)} km`
         : null;
@@ -103,10 +108,10 @@ export const RideStatusBottomSheet = ({
             "This will immediately trigger an emergency alert to dispatch. Are you in danger?",
             [
                 { text: "Cancel", style: "cancel" },
-                { 
-                    text: "YES, TRIGGER", 
-                    style: "destructive", 
-                    onPress: () => Alert.alert("SOS Triggered", "Emergency services notified! A support agent is contacting you.") 
+                {
+                    text: "YES, TRIGGER",
+                    style: "destructive",
+                    onPress: () => Alert.alert("SOS Triggered", "Emergency services notified! A support agent is contacting you.")
                 }
             ]
         );
@@ -114,120 +119,116 @@ export const RideStatusBottomSheet = ({
 
     return (
         <View style={styles.bottomSheetContainer}>
-            {/* Top Drag Indicator */}
-            <View style={styles.handleBar} />
-            
-            {/* Real-time Distance & ETA Indicator Banner */}
-            <View style={[styles.realTimeBanner, tripStatus === 'in_progress' ? styles.bannerProgress : styles.bannerScheduled]}>
-                <View style={styles.liveIndicatorContainer}>
-                    <View style={styles.livePulseDot} />
-                    <Text style={styles.liveIndicatorText}>LIVE</Text>
-                </View>
-                <View style={styles.bannerStats}>
-                    {distanceKm !== null && etaMinutes !== null ? (
-                        <View style={styles.bannerRow}>
-                            <Text style={styles.etaText}>
-                                {tripStatus === 'in_progress' ? 'Arriving in ' : 'Arriving to pickup in '}
-                                <Text style={styles.boldText}>{etaMinutes} min</Text>
-                            </Text>
-                            <Text style={styles.distanceText}>({formattedDistance})</Text>
-                        </View>
-                    ) : (
-                        <Text style={styles.calculatingText}>Calculating real-time distance...</Text>
-                    )}
-                </View>
-            </View>
-
-            {/* OTP Section (Shown only when waiting for pickup) */}
-            {tripStatus === 'scheduled' && otp && (
-                <View style={styles.otpTicket}>
-                    <View style={styles.ticketLeftDot} />
-                    <View style={styles.ticketRightDot} />
-                    <Text style={styles.otpLabel}>SHARE THIS OTP WITH DRIVER TO START RIDE</Text>
-                    <View style={styles.otpCard}>
-                        <Text style={styles.otpValue}>{otp}</Text>
+            {/* Top Drag Indicator & Real-Time Banner (Tappable to collapse/expand) */}
+            <TouchableOpacity activeOpacity={0.8} onPress={toggleExpanded}>
+                <View style={styles.handleBar} />
+                {/* Real-time Distance & ETA Indicator Banner */}
+                <View style={[styles.realTimeBanner, tripStatus === 'in_progress' ? styles.bannerProgress : styles.bannerScheduled, !isExpanded && { marginBottom: 0 }]}>
+                    <View style={styles.liveIndicatorContainer}>
+                        <View style={styles.livePulseDot} />
+                        <Text style={styles.liveIndicatorText}>LIVE</Text>
                     </View>
-                </View>
-            )}
-
-            {/* Driver Profile Card */}
-            <View style={styles.driverCard}>
-                <View style={styles.driverHeader}>
-                    {/* Avatar with dynamic brand colors */}
-                    <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{driverDetails?.name?.[0] || 'D'}</Text>
+                    <View style={styles.bannerStats}>
+                        {distanceKm !== null && etaMinutes !== null ? (
+                            <View style={styles.bannerRow}>
+                                <Text style={styles.etaText}>
+                                    {tripStatus === 'in_progress' ? 'Arriving in ' : 'Arriving to pickup in '}
+                                    <Text style={styles.boldText}>{etaMinutes} min</Text>
+                                </Text>
+                                <Text style={styles.distanceText}>({formattedDistance})</Text>
+                            </View>
+                        ) : (
+                            <Text style={styles.calculatingText}>Calculating real-time distance...</Text>
+                        )}
                     </View>
-                    <View style={styles.driverMeta}>
-                        <Text style={styles.driverName}>{driverDetails?.name || 'Driver'}</Text>
-                        <View style={styles.ratingRow}>
-                            <MaterialIcons name="star" size={16} color="#F59E0B" />
-                            <Text style={styles.ratingText}>4.9 • Verified Captain</Text>
-                        </View>
-                    </View>
-                    {/* License Plate Badge */}
-                    {driverDetails?.vehicleNumber && (
-                        <View style={styles.plateContainer}>
-                            <Text style={styles.plateText}>{driverDetails.vehicleNumber.toUpperCase()}</Text>
-                        </View>
-                    )}
+                    <MaterialIcons name={isExpanded ? "expand-more" : "expand-less"} size={24} color="#64748B" />
                 </View>
+            </TouchableOpacity>
 
-                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                    {/* Vehicle details pill */}
-                    <View style={[styles.vehicleDetailsBadge, { marginBottom: 0 }]}>
-                        <MaterialIcons 
-                            name={driverDetails?.vehicleType === 'tricycle' ? 'pedal-bike' : 'directions-car'} 
-                            size={16} 
-                            color="#64748B" 
-                        />
-                        <Text style={styles.vehicleModelText}>
-                            {driverDetails?.vehicleColor || 'Active'} {driverDetails?.vehicleModel || 'Vehicle'}
+            {isExpanded && (
+                <View style={{ marginTop: 18 }}>
+                    {/* Removed OTP section */}
+
+                    {/* Driver Profile Card */}
+                    <View style={styles.driverCard}>
+                        <View style={styles.driverHeader}>
+                            {/* Avatar with dynamic brand colors */}
+                            <View style={styles.avatar}>
+                                <Text style={styles.avatarText}>{driverDetails?.name?.[0] || 'D'}</Text>
+                            </View>
+                            <View style={styles.driverMeta}>
+                                <Text style={styles.driverName}>{driverDetails?.name || 'Driver'}</Text>
+                                <View style={styles.ratingRow}>
+                                    <MaterialIcons name="star" size={16} color="#F59E0B" />
+                                    <Text style={styles.ratingText}>4.9 • Verified Captain</Text>
+                                </View>
+                            </View>
+                            {/* License Plate Badge */}
+                            {driverDetails?.vehicleNumber && (
+                                <View style={styles.plateContainer}>
+                                    <Text style={styles.plateText}>{driverDetails.vehicleNumber.toUpperCase()}</Text>
+                                </View>
+                            )}
+                        </View>
+
+                        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                            {/* Vehicle details pill */}
+                            <View style={[styles.vehicleDetailsBadge, { marginBottom: 0 }]}>
+                                <MaterialIcons
+                                    name={driverDetails?.vehicleType === 'tricycle' ? 'pedal-bike' : 'directions-car'}
+                                    size={16}
+                                    color="#64748B"
+                                />
+                                <Text style={styles.vehicleModelText}>
+                                    {driverDetails?.vehicleColor || 'Active'} {driverDetails?.vehicleModel || 'Vehicle'}
+                                </Text>
+                            </View>
+
+                            {/* Fare badge */}
+                            {driverDetails?.fare !== undefined && (
+                                <View style={[styles.vehicleDetailsBadge, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE', borderWidth: 1, marginBottom: 0 }]}>
+                                    <MaterialIcons name="monetization-on" size={16} color="#4F46E5" />
+                                    <Text style={[styles.vehicleModelText, { color: '#4F46E5' }]}>
+                                        Fare: ₹{Number(driverDetails.fare).toFixed(2)}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+
+                        {/* Dynamic Subtext */}
+                        <Text style={styles.statusDescription}>
+                            {tripStatus === 'in_progress'
+                                ? 'Heading safely towards your destination.'
+                                : 'Your captain is en-route. Please meet them at the pickup point.'}
                         </Text>
                     </View>
 
-                    {/* Fare badge */}
-                    {driverDetails?.fare !== undefined && (
-                        <View style={[styles.vehicleDetailsBadge, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE', borderWidth: 1, marginBottom: 0 }]}>
-                            <MaterialIcons name="monetization-on" size={16} color="#4F46E5" />
-                            <Text style={[styles.vehicleModelText, { color: '#4F46E5' }]}>
-                                Fare: ₹{Number(driverDetails.fare).toFixed(2)}
-                            </Text>
-                        </View>
+                    {/* Interactive Actions Grid */}
+                    <View style={styles.actionsContainer}>
+                        <TouchableOpacity style={[styles.actionBtn, styles.callBtn]} onPress={handleCallDriver}>
+                            <MaterialIcons name="call" size={20} color="#4F46E5" />
+                            <Text style={styles.actionBtnText}>Call</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={[styles.actionBtn, styles.messageBtn]} onPress={handleMessageDriver}>
+                            <MaterialIcons name="chat" size={20} color="#4F46E5" />
+                            <Text style={styles.actionBtnText}>Message</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={[styles.actionBtn, styles.sosBtn]} onPress={handleSOS}>
+                            <MaterialIcons name="security" size={20} color="#EF4444" />
+                            <Text style={[styles.actionBtnText, styles.sosBtnText]}>Safety SOS</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Cancel Button (Hide during active transit) */}
+                    {tripStatus !== 'in_progress' && (
+                        <TouchableOpacity style={styles.cancelBtn} onPress={onCancelTrip}>
+                            <MaterialIcons name="close" size={18} color="#FFFFFF" />
+                            <Text style={styles.cancelBtnText}>Cancel Trip</Text>
+                        </TouchableOpacity>
                     )}
                 </View>
-
-                {/* Dynamic Subtext */}
-                <Text style={styles.statusDescription}>
-                    {tripStatus === 'in_progress' 
-                        ? 'Heading safely towards your destination.' 
-                        : 'Your captain is en-route. Please meet them at the pickup point.'}
-                </Text>
-            </View>
-
-            {/* Interactive Actions Grid */}
-            <View style={styles.actionsContainer}>
-                <TouchableOpacity style={[styles.actionBtn, styles.callBtn]} onPress={handleCallDriver}>
-                    <MaterialIcons name="call" size={20} color="#4F46E5" />
-                    <Text style={styles.actionBtnText}>Call</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.actionBtn, styles.messageBtn]} onPress={handleMessageDriver}>
-                    <MaterialIcons name="chat" size={20} color="#4F46E5" />
-                    <Text style={styles.actionBtnText}>Message</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.actionBtn, styles.sosBtn]} onPress={handleSOS}>
-                    <MaterialIcons name="security" size={20} color="#EF4444" />
-                    <Text style={[styles.actionBtnText, styles.sosBtnText]}>Safety SOS</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Cancel Button (Hide during active transit) */}
-            {tripStatus !== 'in_progress' && (
-                <TouchableOpacity style={styles.cancelBtn} onPress={onCancelTrip}>
-                    <MaterialIcons name="close" size={18} color="#FFFFFF" />
-                    <Text style={styles.cancelBtnText}>Cancel Trip</Text>
-                </TouchableOpacity>
             )}
         </View>
     );
