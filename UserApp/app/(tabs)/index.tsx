@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { usePassengerDashboard } from "@/hooks/ride/usePassengerDashboard";
 import { MapViewComponent } from "@components/map/MapViewComponent";
 import { PinLocationCard } from "@/components/map/PinLocationCard";
+import { TripReceipt } from "@/components/ride/TripReceipt";
 
 // Ride Components
 import { LocationSearchCard } from "@/components/ride/LocationSearchCard";
@@ -35,6 +36,7 @@ export default function App() {
         mapComponents,
         mapRef,
         mapRegion,
+        routeRefreshKey,
         setSelectedVehicleType,
         setIsChoosingOnMap,
         setRouteDetails,
@@ -43,6 +45,7 @@ export default function App() {
         handleConfirmRide,
         handleCancelSearch,
         handleCancelTrip,
+        handleDismissReceipt,
         handleDestinationSelect,
         handleClearRoute,
         handleChooseOnMap,
@@ -97,6 +100,7 @@ export default function App() {
                             onDestinationPress={handleDestinationPress}
                             isChoosingOnMap={isChoosingOnMap}
                             selectedVehicleType={selectedVehicleType}
+                            routeRefreshKey={routeRefreshKey}
                         />
                     </View>
 
@@ -124,7 +128,7 @@ export default function App() {
                         />
                     )}
 
-                    {isConfirmed && !isSearching && assignedDriverId && (
+                    {isConfirmed && !isSearching && assignedDriverId && tripStatus !== 'completed' && (
                         <RideStatusBottomSheet
                             tripStatus={tripStatus}
                             otp={otp}
@@ -134,6 +138,15 @@ export default function App() {
                             origin={origin}
                             destination={destination}
                             routeDetails={routeDetails}
+                        />
+                    )}
+
+                    {tripStatus === 'completed' && (
+                        <TripReceipt
+                            driverDetails={driverDetails}
+                            origin={origin}
+                            destination={destination}
+                            onDismiss={handleDismissReceipt}
                         />
                     )}
                 </View>

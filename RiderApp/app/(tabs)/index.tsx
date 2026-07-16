@@ -23,29 +23,23 @@ export default function DriverDashboard() {
         incomingRequest,
         isChoosingOnMap,
         pinAddress,
-        otpModalVisible,
-        currentOtpTrip,
-        otpInput,
         mapComponents,
         mapRef,
         origin,
         mapRegion,
-        setOtpInput,
         setIsChoosingOnMap,
         handleAcceptRide,
         handleRejectRide,
         toggleDutyStatus,
-        verifyOtp,
+        startTrip,
+        completeTrip,
         handleCancelTrip,
-        handleEndTrip,
         handleChooseOnMap,
         handleConfirmPinLocation,
         handleRegionChangeComplete,
         handleDestinationSelect,
         handleDestinationSearchFocus,
         handleDestinationPress,
-        openOtpModal,
-        closeOtpModal,
     } = useDriverDashboard();
 
     const MapView = mapComponents?.MapView;
@@ -125,22 +119,15 @@ export default function DriverDashboard() {
                     />
                 )}
 
-                <OtpVerificationModal
-                    visible={otpModalVisible}
-                    passengerName={currentOtpTrip?.passengerName || ''}
-                    otpInput={otpInput}
-                    setOtpInput={setOtpInput}
-                    onCancel={closeOtpModal}
-                    onVerify={verifyOtp}
-                />
+
 
                 {activeTrips.length > 0 && (
                     <View style={styles.bottomView}>
                         <ActiveTripsList
                             activeTrips={activeTrips}
-                            onOpenOtp={openOtpModal}
+                            onStartTrip={startTrip}
                             onCancelTrip={handleCancelTrip}
-                            onEndTrip={handleEndTrip}
+                            onCompleteTrip={completeTrip}
                         />
                     </View>
                 )}

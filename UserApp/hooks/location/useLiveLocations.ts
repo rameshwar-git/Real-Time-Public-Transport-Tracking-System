@@ -21,7 +21,7 @@ export const useLiveLocations = (origin?: { latitude: number, longitude: number 
 
     const startPolling = () => {
         load();
-        pollRef.current = setInterval(load, 3000);
+        pollRef.current = setInterval(load, 10000);
     };
 
     const stopPolling = () => clearInterval(pollRef.current);

@@ -234,7 +234,7 @@ export const getPassengerStats = async (req: AuthRequest, res: Response) => {
       : 0;
 
     const totalSpent = completedTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
- 
+
     return res.status(200).json({
       totalRides,
       averageRating: Number(averageRating.toFixed(1)),

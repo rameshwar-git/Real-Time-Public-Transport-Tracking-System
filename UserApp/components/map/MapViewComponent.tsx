@@ -29,6 +29,7 @@ type Props = {
     onDestinationPress?: () => void;
     isChoosingOnMap?: boolean;
     selectedVehicleType?: 'all' | 'tricycle' | 'bus';
+    routeRefreshKey?: number;
 };
 
 export const MapViewComponent: React.FC<Props> = (
@@ -49,7 +50,8 @@ export const MapViewComponent: React.FC<Props> = (
         onRouteDetailsUpdated,
         onDestinationPress,
         isChoosingOnMap,
-        selectedVehicleType = 'all'
+        selectedVehicleType = 'all',
+        routeRefreshKey = 0
     }) => {
     const isLifted = useRef(false);
     const liftAnim = useRef(new Animated.Value(0)).current;
@@ -148,9 +150,9 @@ export const MapViewComponent: React.FC<Props> = (
                             mapRef.current?.fitToCoordinates(result.coordinates);
                         }}
                     />
-                )}
-                {isConfirmed && isValidCoord(assignedDriverLocation) && isValidCoord(tripStatus === 'in_progress' ? destination : origin) && (
+                )}                {isConfirmed && isValidCoord(assignedDriverLocation) && isValidCoord(tripStatus === 'in_progress' ? destination : origin) && (
                     <MapViewDirections
+                        key={`route-refresh-${routeRefreshKey}`}
                         origin={assignedDriverLocation!}
                         destination={(tripStatus === 'in_progress' ? destination : origin)!}
                         apikey={env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}
