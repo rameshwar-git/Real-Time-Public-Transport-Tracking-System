@@ -150,7 +150,8 @@ export const MapViewComponent: React.FC<Props> = (
                             mapRef.current?.fitToCoordinates(result.coordinates);
                         }}
                     />
-                )}                {isConfirmed && isValidCoord(assignedDriverLocation) && isValidCoord(tripStatus === 'in_progress' ? destination : origin) && (
+                )}
+                {isConfirmed && isValidCoord(assignedDriverLocation) && isValidCoord(tripStatus === 'in_progress' ? destination : origin) && (
                     <MapViewDirections
                         key={`route-refresh-${routeRefreshKey}`}
                         origin={assignedDriverLocation!}
@@ -179,7 +180,7 @@ export const MapViewComponent: React.FC<Props> = (
                         onError={(err) => console.warn('[MapViewDirections] Route error:', err)}
                     />
                 )}
-                {!isChoosingOnMap && destination && isValidCoord(destination) && renderDestinationMarker(
+                {!isChoosingOnMap && !!destination && isValidCoord(destination) && renderDestinationMarker(
                     Marker,
                     destination,
                     onDestinationPress

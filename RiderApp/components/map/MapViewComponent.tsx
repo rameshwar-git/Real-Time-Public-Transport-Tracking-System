@@ -191,7 +191,7 @@ export const MapViewComponent: React.FC<Props> = (
                         onError={(err) => console.warn('[MapViewDirections] Route error:', err)}
                     />
                 )}
-                {isOnDuty && !isChoosingOnMap && isValidCoord(destination) && renderDestinationMarker(
+                {isOnDuty && !isChoosingOnMap && !!destination && isValidCoord(destination) && renderDestinationMarker(
                     Marker,
                     destination,
                     onDestinationPress
