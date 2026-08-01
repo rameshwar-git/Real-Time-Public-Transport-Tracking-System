@@ -10,7 +10,6 @@ import { IncomingRequestCard } from "@/components/driver/IncomingRequestCard";
 import { ActiveTripsList } from "@/components/driver/ActiveTripsList";
 import { DutyToggle } from "@/components/driver/DutyToggle";
 import { PinLocationCard } from "@/components/driver/PinLocationCard";
-import { OtpVerificationModal } from "@/components/driver/OtpVerificationModal";
 
 export default function DriverDashboard() {
     const {

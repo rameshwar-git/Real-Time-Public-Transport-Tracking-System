@@ -12,14 +12,13 @@ export const renderDestinationMarker = (
   return (
     <Marker
       coordinate={destination}
-      title="Destination"
       description={destination.description}
       onPress={onPress}
     >
-      <View style={styles.markerContainer}>
-        <View style={styles.destinationPinHead}>
-          <Ionicons name="location" size={16} color="#FFFFFF" />
-        </View>
+    <View style={styles.markerContainer}>
+          <View style={styles.destinationPinHead}>
+            <Ionicons name="location" size={16} color="#FFFFFF" />
+          </View>
         <View style={styles.destinationPinStem} />
         <View style={styles.destinationPinTip} />
       </View>

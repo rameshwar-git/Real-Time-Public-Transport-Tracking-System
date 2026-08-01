@@ -131,7 +131,6 @@ export default function App() {
                     {isConfirmed && !isSearching && assignedDriverId && tripStatus !== 'completed' && (
                         <RideStatusBottomSheet
                             tripStatus={tripStatus}
-                            otp={otp}
                             driverDetails={driverDetails}
                             onCancelTrip={handleCancelTrip}
                             assignedDriverLocation={assignedDriverLocation}

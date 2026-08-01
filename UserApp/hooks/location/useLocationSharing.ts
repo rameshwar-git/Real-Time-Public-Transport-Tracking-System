@@ -15,6 +15,8 @@ export const useLocationSharing = (userId: string | null) => {
         const locationId = await AsyncStorage.getItem("locationId");
 
         locationSub.current = await watchUserLocation(async (loc: any) => {
+            if (!loc || !loc.coords) return; // Safety check for undefined location data
+
             const coords = {
                 latitude: loc.coords.latitude,
                 longitude: loc.coords.longitude,
