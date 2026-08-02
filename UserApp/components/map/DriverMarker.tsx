@@ -99,7 +99,9 @@ export const renderDriverMarker = (
             ? require("@assets/map/tricycle.png")
             : require("@assets/map/bus.png")
           : require("@assets/map/tricycle.png")
-      }
+      } 
+      style={{ width: 30, height: 30 }}
+      resizeMode='contain'
     />
   );
 };

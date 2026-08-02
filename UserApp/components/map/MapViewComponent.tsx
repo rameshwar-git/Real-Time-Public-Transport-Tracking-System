@@ -92,7 +92,7 @@ export const MapViewComponent: React.FC<Props> = (
                         latitude: origin.latitude,
                         longitude: origin.longitude,
                     },
-                    zoom: 18, // street-level zoom (~100m radius)
+                    zoom: 20, // street-level zoom (~100m radius)
                 },
                 { duration: 1000 }
             );
@@ -168,6 +168,7 @@ export const MapViewComponent: React.FC<Props> = (
                                 mapRef.current?.fitToCoordinates(result.coordinates, {
                                     edgePadding: { top: 80, right: 60, bottom: 300, left: 60 },
                                     animated: true,
+                                    zoom: 20,
                                 });
                             }
                             if (onRouteDetailsUpdated) {

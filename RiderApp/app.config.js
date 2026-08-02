@@ -2,8 +2,8 @@ import 'dotenv/config';
 
 export default {
   expo: {
-    name: "TrackMyRide",
-    slug: "TrackMyRide",
+    name: "TrackMyRide-Driver",
+    slug: "TrackMyRide-Driver",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
