@@ -96,7 +96,7 @@ export const renderDriverMarker = (
       image={
         isDriver
           ? u.vehicleId?.vehicleType === "tricycle"
-            ? require("@assets/map/tricycle.svg")
+            ? require("@assets/map/tricycle.png")
             : require("@assets/map/bus.png")
           : require("@assets/map/tricycle.png")
       } 
