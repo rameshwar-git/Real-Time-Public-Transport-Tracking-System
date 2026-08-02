@@ -108,6 +108,21 @@ export const calculateRouteMatch = (
  * @param origin Source location to measure from
  * @returns The nearest user object or null
  */
+/**
+ * Estimate trip distance (km) and duration (minutes) between two points.
+ * Duration is derived from distance using the existing 2.4 factor.
+ * @returns { estimatedDistance, estimatedDuration } (duration floored to >= 1)
+ */
+export const estimateTripMetrics = (origin?: MaybeCoords, destination?: MaybeCoords) => {
+    let estimatedDistance = 0;
+    let estimatedDuration = 0;
+    if (origin && destination) {
+        estimatedDistance = getDistance(origin.latitude, origin.longitude, destination.latitude, destination.longitude);
+        estimatedDuration = Math.max(1, Math.round(estimatedDistance * 2.4));
+    }
+    return { estimatedDistance, estimatedDuration };
+};
+
 export const findNearestUser = <T extends { currentLocation?: MaybeCoords }>(users: T[], origin: Coords): T | null => {
     if (users.length === 0) return null;
 
@@ -126,4 +141,4 @@ export const findNearestUser = <T extends { currentLocation?: MaybeCoords }>(use
     return nearest;
 };
 
-export { calculateFare, roundToNearestFive } from './fareCalculator';
+export { calculateFare, roundToNearestFive, applyVehicleFareModifier, fareFor } from './fareCalculator';

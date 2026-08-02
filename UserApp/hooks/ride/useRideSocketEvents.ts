@@ -1,11 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
+import { upsertDriverLocation } from '@/utils/location';
 
 interface UseRideSocketEventsProps {
     socket: any;
     userId: string | null;
-    origin: any;
-    destination: any;
     searchTimeoutRef: React.MutableRefObject<any>;
     currentDriverIndexRef: React.MutableRefObject<number>;
     requestNextDriver: (index: number) => void;
@@ -27,8 +26,6 @@ interface UseRideSocketEventsProps {
 export const useRideSocketEvents = ({
     socket,
     userId,
-    origin,
-    destination,
     searchTimeoutRef,
     currentDriverIndexRef,
     requestNextDriver,
@@ -117,18 +114,7 @@ export const useRideSocketEvents = ({
 
         const onDriverLocationUpdated = (data: any) => {
             if (data.driverId === assignedDriverId) {
-                setLocations((prev: any[]) => {
-                    const exists = prev.some((loc: any) => loc.userId === data.driverId);
-                    if (exists) {
-                        return prev.map((loc: any) =>
-                            loc.userId === data.driverId
-                                ? { ...loc, currentLocation: data.currentLocation, vehicleId: loc.vehicleId || { vehicleType: acceptedVehicleTypeRef.current } }
-                                : loc
-                        );
-                    }
-                    // Seed driver entry if not yet in locations list (happens on reopen)
-                    return [...prev, { userId: data.driverId, currentLocation: data.currentLocation, vehicleId: { vehicleType: acceptedVehicleTypeRef.current } }];
-                });
+                setLocations(prev => upsertDriverLocation(prev, data.driverId, data.currentLocation, acceptedVehicleTypeRef.current));
             }
         };
 

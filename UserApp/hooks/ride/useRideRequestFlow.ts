@@ -2,6 +2,7 @@ import { Alert } from 'react-native';
 import { findDrivers } from '@/services/apiService';
 import { getToken } from '@/services/storageService';
 import { getDistance } from '@/utils/geometry';
+import { calculateEstimatedFare, roundToNearestFive } from '@/utils/fare';
 
 interface UseRideRequestFlowProps {
     socket: any;
@@ -53,20 +54,6 @@ export const useRideRequestFlow = ({
         startSharing(destination, 'confirmed');
 
         // Calculate passenger fare based on passenger math to send to driver to match fare
-        const roundToNearestFive = (val: number): number => {
-            const rem = val % 5;
-            if (rem < 3) {
-                return Math.floor(val / 5) * 5;
-            } else {
-                return Math.ceil(val / 5) * 5;
-            }
-        };
-
-        const calculateEstimatedFare = (dist: number): number => {
-            if (!dist || isNaN(dist)) return 10;
-            if (dist <= 2.5) return 10;
-            return Number((10 + (dist - 2.5) * 2).toFixed(2));
-        };
         const calculatedDistance = routeDetails?.distance || (origin && destination ? getDistance(origin.latitude, origin.longitude, destination.latitude, destination.longitude) : 0);
         const baseFare = calculateEstimatedFare(calculatedDistance);
         

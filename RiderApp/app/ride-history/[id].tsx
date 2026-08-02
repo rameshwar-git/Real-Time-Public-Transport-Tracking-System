@@ -12,27 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getDriverRideHistory } from '@/services/apiService';
-
-interface Ride {
-  id: string;
-  passengerName: string;
-  from: { latitude: number; longitude: number };
-  to: { latitude: number; longitude: number };
-  distance: number;
-  duration: number;
-  fare: number;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'canceled';
-  startDate?: string;
-  endDate?: string;
-  rating?: number | null;
-}
-
-const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  completed: { label: 'Completed', color: '#10B981', bg: '#ECFDF5' },
-  canceled: { label: 'Canceled', color: '#EF4444', bg: '#FEF2F2' },
-  scheduled: { label: 'Scheduled', color: '#F59E0B', bg: '#FFFBEB' },
-  in_progress: { label: 'In Progress', color: '#3B82F6', bg: '#EFF6FF' },
-};
+import { Ride, STATUS_META } from '@/types/ride';
+import { formatFare } from '@/utils/format';
 
 const fmt = (v?: string) => {
   if (!v) return '—';
@@ -109,7 +90,7 @@ export default function RideDetailScreen() {
           <View style={[styles.statusBadge, { backgroundColor: meta.bg }]}>
             <Text style={[styles.statusText, { color: meta.color }]}>{meta.label}</Text>
           </View>
-          <Text style={styles.summaryAmount}>₹{ride.fare?.toFixed(2)}</Text>
+          <Text style={styles.summaryAmount}>{formatFare(ride.fare)}</Text>
           <Text style={styles.summaryLabel}>Total Fare</Text>
           {ride.rating ? (
             <View style={styles.ratingRow}>
@@ -175,7 +156,7 @@ export default function RideDetailScreen() {
           </View>
           <View style={styles.statBox}>
             <MaterialCommunityIcons name="cash" size={22} color="#10B981" />
-            <Text style={styles.statValue}>₹{ride.fare?.toFixed(2)}</Text>
+            <Text style={styles.statValue}>{formatFare(ride.fare)}</Text>
             <Text style={styles.statLabel}>Fare</Text>
           </View>
         </View>

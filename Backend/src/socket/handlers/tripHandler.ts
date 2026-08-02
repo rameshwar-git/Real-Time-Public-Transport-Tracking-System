@@ -1,8 +1,11 @@
 import { connectedUsers, emitToUser } from '../connectionManager';
+import { TripModel } from '@/models/trip/TripModel';
+import DriverLocationModel from '@/models/location/DriverLocation';
+import { restoreSeat } from '../utils/seats';
 
 /**
  * Registers trip lifecycle socket events:
- *  - verify-otp
+ *  - start-trip
  *  - dropoff-passenger
  *  - cancel-trip
  */
@@ -12,7 +15,6 @@ export function registerTripHandlers(io: any, socket: any, userId: string) {
         const { tripId } = data;
         console.log(`[start-trip] Driver initiated start-trip for tripId: ${tripId}`);
         try {
-            const { TripModel } = require('@/models/trip/TripModel');
             const trip = await TripModel.findById(tripId);
 
             if (!trip) {
@@ -39,7 +41,6 @@ export function registerTripHandlers(io: any, socket: any, userId: string) {
 
     socket.on("dropoff-passenger", async (data: any) => {
         const { tripId } = data;
-        const { TripModel } = require('@/models/trip/TripModel');
         const trip = await TripModel.findById(tripId);
 
         if (trip && trip.status === 'in_progress') {
@@ -48,12 +49,7 @@ export function registerTripHandlers(io: any, socket: any, userId: string) {
             await trip.save();
 
             // Restore seat
-            const VehicleModel = require('@/models/vehicles/VehicleModel').default;
-            const vehicle = await VehicleModel.findById(trip.vehicleId);
-            if (vehicle) {
-                const currentSeats = vehicle.availableSeats !== undefined ? vehicle.availableSeats : vehicle.capacity;
-                await VehicleModel.findByIdAndUpdate(trip.vehicleId, { availableSeats: currentSeats + 1 });
-            }
+            await restoreSeat(trip.vehicleId);
 
             emitToUser(io, trip.passengerId.toString(), "trip-completed", { tripId });
         }
@@ -61,7 +57,6 @@ export function registerTripHandlers(io: any, socket: any, userId: string) {
 
     socket.on("cancel-trip", async (data: any) => {
         const { tripId, canceledBy } = data;
-        const { TripModel } = require('@/models/trip/TripModel');
         const trip = await TripModel.findById(tripId);
 
         if (trip && trip.status !== 'completed' && trip.status !== 'canceled') {
@@ -76,12 +71,7 @@ export function registerTripHandlers(io: any, socket: any, userId: string) {
 
             // Restore seat
             if (trip.vehicleId) {
-                const VehicleModel = require('@/models/vehicles/VehicleModel').default;
-                const vehicle = await VehicleModel.findById(trip.vehicleId);
-                if (vehicle) {
-                    const currentSeats = vehicle.availableSeats !== undefined ? vehicle.availableSeats : vehicle.capacity;
-                    await VehicleModel.findByIdAndUpdate(trip.vehicleId, { availableSeats: currentSeats + 1 });
-                }
+                await restoreSeat(trip.vehicleId);
             }
 
             // Notify both parties
@@ -91,7 +81,6 @@ export function registerTripHandlers(io: any, socket: any, userId: string) {
 
             if (canceledBy === 'passenger') {
                 try {
-                    const DriverLocationModel = require('@/models/location/DriverLocation').default;
                     await DriverLocationModel.findOneAndUpdate(
                         { userId: trip.driverId },
                         { status: 'on-duty' }

@@ -383,6 +383,8 @@ Keep comments only when they explain WHY.
 
 Avoid obvious comments.
 
+Mention the purpose of extracted components, hooks, services, utils, constants, types.
+
 Bad
 
 ```

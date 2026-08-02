@@ -38,7 +38,7 @@ export const disconnectSocket = async () => {
 };
 
 // Emit user location updates to the server
-export const emitLocationUpdate = (latitude: number, longitude: number) => {
+const emitLocationUpdate = (latitude: number, longitude: number) => {
   if (!socket.connected) return;
 
   const payload = {

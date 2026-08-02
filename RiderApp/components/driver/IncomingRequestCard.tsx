@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, shadow, spacing } from '@/constants/ui';
+import { formatFare, formatKm } from '@/utils/format';
 
 interface IncomingRequestCardProps {
     onAccept: () => void;
@@ -63,8 +64,8 @@ export const IncomingRequestCard = ({ onAccept, onReject, incomingRequest }: Inc
                     <Text style={styles.estimateLabel}>RIDE ESTIMATE</Text>
                     <View style={styles.estimatePill}>
                         <Text style={styles.estimateText}>
-                            📏 {incomingRequest.estimatedDistance.toFixed(1)} km  •  ⏱️ {incomingRequest.estimatedDuration} min
-                            {incomingRequest.fare !== undefined && `  •  💰 ₹${Number(incomingRequest.fare).toFixed(2)}`}
+                            📏 {formatKm(incomingRequest.estimatedDistance)}  •  ⏱️ {incomingRequest.estimatedDuration} min
+                            {incomingRequest.fare !== undefined && `  •  💰 ${formatFare(incomingRequest.fare)}`}
                         </Text>
                     </View>
                 </View>

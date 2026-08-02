@@ -11,7 +11,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { getDriverReports, getDriverEarnings, getWeeklyEarnings } from '@/services/apiService';
+import { getDriverReports, getWeeklyEarnings } from '@/services/apiService';
+import { formatFare } from '@/utils/format';
 
 interface Report {
   totalEarnings: number;
@@ -101,7 +102,7 @@ export default function ReportsScreen() {
         <Text style={styles.sectionTitle}>Overview</Text>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Total Earnings</Text>
-          <Text style={styles.summaryAmount}>₹{report.totalEarnings.toFixed(2)}</Text>
+          <Text style={styles.summaryAmount}>{formatFare(report.totalEarnings)}</Text>
           <Text style={styles.summarySub}>{report.totalTrips} completed trips</Text>
         </View>
 
@@ -113,7 +114,7 @@ export default function ReportsScreen() {
           </View>
           <View style={styles.metricBox}>
             <MaterialCommunityIcons name="receipt" size={22} color="#10B981" />
-            <Text style={styles.metricValue}>₹{report.avgFare.toFixed(2)}</Text>
+            <Text style={styles.metricValue}>{formatFare(report.avgFare)}</Text>
             <Text style={styles.metricLabel}>Avg Fare</Text>
           </View>
           <View style={styles.metricBox}>
@@ -130,7 +131,7 @@ export default function ReportsScreen() {
 
         {report.topDayEarnings > 0 && (
           <Text style={styles.topDayNote}>
-            Your best day is {report.topDay} earning ₹{report.topDayEarnings.toFixed(2)}.
+            Your best day is {report.topDay} earning {formatFare(report.topDayEarnings)}.
           </Text>
         )}
 

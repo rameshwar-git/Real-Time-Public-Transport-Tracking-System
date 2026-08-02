@@ -85,7 +85,7 @@ export const calculateRouteMatch = (
  * @param origin Source location to measure from
  * @returns The nearest user object or null
  */
-export const findNearestUser = <T extends { currentLocation?: MaybeCoords }>(users: T[], origin: Coords): T | null => {
+const findNearestUser = <T extends { currentLocation?: MaybeCoords }>(users: T[], origin: Coords): T | null => {
     if (users.length === 0) return null;
 
     let nearest: T | null = null;

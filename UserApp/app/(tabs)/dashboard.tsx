@@ -521,18 +521,12 @@ const styles = StyleSheet.create({
   statusConfirmed: {
     backgroundColor: '#ECFDF5',
   },
-  statusScheduled: {
-    backgroundColor: '#EFF6FF',
-  },
   statusText: {
     fontSize: 11,
     fontWeight: '600',
   },
   statusTextConfirmed: {
     color: '#10B981',
-  },
-  statusTextScheduled: {
-    color: '#3B82F6',
   },
   rideFooter: {
     flexDirection: 'row',

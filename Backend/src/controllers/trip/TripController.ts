@@ -13,33 +13,25 @@ export const createTrip = async (req: Request, res: Response) => {
     }
 };
 
-// Update trip by passengerId
-export const putTripPassenger = async (req: Request, res: Response) => {
+// Update trip by a single user field (passengerId or driverId)
+const updateTripBy = async (field: 'passengerId' | 'driverId', req: Request, res: Response) => {
     try {
-        const { passengerId } = req.params;
-        if (!passengerId) {
+        const { [field]: id } = req.params;
+        if (!id) {
             return res.status(400).json({ error: 'TripId is required' });
         }
-        const trip = await TripModel.findOneAndUpdate({ passengerId }, { ...req.body });
+        await TripModel.findOneAndUpdate({ [field]: id }, { ...req.body });
         res.status(200).json({ Status: 'SUCCESS' });
     } catch (err: any) {
         res.status(500).json({ Status: 'FAILED' });
     }
 };
 
+// Update trip by passengerId
+export const putTripPassenger = (req: Request, res: Response) => updateTripBy('passengerId', req, res);
+
 // Update trip by driverId
-export const putTripDriver = async (req: Request, res: Response) => {
-    try {
-        const { driverId } = req.params;
-        if (!driverId) {
-            return res.status(400).json({ error: 'TripId is required' });
-        }
-        const trip = await TripModel.findOneAndUpdate({ driverId }, { ...req.body });
-        res.status(200).json({ Status: 'SUCCESS' });
-    } catch (err: any) {
-        res.status(500).json({ Status: 'FAILED' });
-    }
-};
+export const putTripDriver = (req: Request, res: Response) => updateTripBy('driverId', req, res);
 
 import DriverLocationModel from '@/models/location/DriverLocation';
 import VehicleModel from '@/models/vehicles/VehicleModel';
@@ -135,6 +127,17 @@ export const findDrivers = async (req: Request, res: Response) => {
     }
 };
 
+// Validate rating input; returns an error message string or null when valid
+const validateRatingInput = (tripId: any, rating: any): string | null => {
+    if (!tripId) {
+        return 'Trip ID is required';
+    }
+    if (typeof rating !== 'number' || rating < 1 || rating > 5) {
+        return 'Rating must be a number between 1 and 5';
+    }
+    return null;
+};
+
 // Passenger rates a driver (sets driverRating on the trip)
 export const rateDriver = async (req: AuthRequest, res: Response) => {
     try {
@@ -142,11 +145,9 @@ export const rateDriver = async (req: AuthRequest, res: Response) => {
         const { tripId } = req.params;
         const { rating } = req.body;
 
-        if (!tripId) {
-            return res.status(400).json({ error: 'Trip ID is required' });
-        }
-        if (typeof rating !== 'number' || rating < 1 || rating > 5) {
-            return res.status(400).json({ error: 'Rating must be a number between 1 and 5' });
+        const validationError = validateRatingInput(tripId, rating);
+        if (validationError) {
+            return res.status(400).json({ error: validationError });
         }
 
         const trip = await TripModel.findOne({ _id: tripId, passengerId });
@@ -170,11 +171,9 @@ export const ratePassenger = async (req: AuthRequest, res: Response) => {
         const { tripId } = req.params;
         const { rating } = req.body;
 
-        if (!tripId) {
-            return res.status(400).json({ error: 'Trip ID is required' });
-        }
-        if (typeof rating !== 'number' || rating < 1 || rating > 5) {
-            return res.status(400).json({ error: 'Rating must be a number between 1 and 5' });
+        const validationError = validateRatingInput(tripId, rating);
+        if (validationError) {
+            return res.status(400).json({ error: validationError });
         }
 
         const trip = await TripModel.findOne({ _id: tripId, driverId });

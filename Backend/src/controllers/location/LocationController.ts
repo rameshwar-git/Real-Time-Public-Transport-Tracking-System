@@ -3,6 +3,7 @@ import PassengerLocationModel from '@/models/location/PassengerLocation';
 import DriverLocationModel from '@/models/location/DriverLocation';
 import DriverModel from '@/models/users/UserDriverModel';
 import PassengerModel from '@/models/users/UserPassengerModel';
+import VehicleModel from '@/models/vehicles/VehicleModel';
 import { AuthRequest } from "@/middleware/verifyToken";
 import { getNearestNUsers } from '@/utils/geometry';
 
@@ -70,7 +71,6 @@ export const updateDriverLocation = async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ error: "Driver not found" });
         }
 
-        const VehicleModel = require('@/models/vehicles/VehicleModel').default;
         const vehicle = await VehicleModel.findOne({ driverId: userId }).select('_id');
         if (vehicle) {
             vehicleId = vehicle._id;

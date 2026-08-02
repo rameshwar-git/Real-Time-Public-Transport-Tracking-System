@@ -2,10 +2,11 @@ import { Request, Response } from 'express';
 import DriverModel from '@/models/users/UserDriverModel';
 import PassengerModel from '@/models/users/UserPassengerModel';
 import VehicleModel from '@/models/vehicles/VehicleModel';
+import DriverLocationModel from '@/models/location/DriverLocation';
 import { TripModel } from '@/models/trip/TripModel';
 import { createDriverLocation } from '@/controllers/location/LocationController';
 import { createVehicle } from '@/controllers/vehicle/VehicleController';
-import { calculateFare } from '@/utils/geometry';
+import { fareFor } from '@/utils/geometry';
 import { driverAvgRating } from '@/utils/rating';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -137,14 +138,14 @@ export const getDriverEarnings = async (req: AuthRequest, res: Response) => {
             trip.endDate && new Date(trip.endDate) >= weekAgo
         );
 
-        const weeklyEarnings = weeklyTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
-        const totalEarnings = completedTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
+        const weeklyEarnings = weeklyTrips.reduce((sum, trip) => sum + fareFor(trip), 0);
+        const totalEarnings = completedTrips.reduce((sum, trip) => sum + fareFor(trip), 0);
 
         const lastWeekTrips = completedTrips.filter(trip => {
             const twoWeeksAgo = new Date(weekAgo.getTime() - 7 * 24 * 60 * 60 * 1000);
             return trip.endDate && new Date(trip.endDate) < weekAgo && new Date(trip.endDate) >= twoWeeksAgo;
         });
-        const lastWeekEarnings = lastWeekTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
+        const lastWeekEarnings = lastWeekTrips.reduce((sum, trip) => sum + fareFor(trip), 0);
         const weeklyChange = lastWeekEarnings > 0
             ? ((weeklyEarnings - lastWeekEarnings) / lastWeekEarnings * 100).toFixed(1)
             : 0;
@@ -200,7 +201,7 @@ export const getWeeklyEarnings = async (req: AuthRequest, res: Response) => {
             if (trip.endDate) {
                 const tripDate = new Date(trip.endDate);
                 const dayName = dayNames[tripDate.getDay()];
-                dailyEarnings[dayName] = (dailyEarnings[dayName] || 0) + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0));
+                dailyEarnings[dayName] = (dailyEarnings[dayName] || 0) + fareFor(trip);
             }
         });
 
@@ -226,7 +227,6 @@ export const getDriverProfile = async (req: AuthRequest, res: Response) => {
 
         const vehicle = await VehicleModel.findOne({ driverId }).lean();
 
-        const DriverLocationModel = require('@/models/location/DriverLocation').default;
         const driverLocation = await DriverLocationModel.findOne({ userId: driverId }).lean();
         const lastDestination = driverLocation?.destination || null;
 
@@ -283,9 +283,9 @@ export const getActiveDriverTrips = async (req: AuthRequest, res: Response) => {
             origin: trip.startLocation,
             destination: trip.destination,
             status: trip.status,
-            estimatedDistance: (trip as any).estimatedDistance,
-            estimatedDuration: (trip as any).estimatedDuration,
-            fare: (trip as any).fare !== undefined ? (trip as any).fare : calculateFare((trip as any).estimatedDistance || 0)
+            estimatedDistance: trip.estimatedDistance,
+            estimatedDuration: trip.estimatedDuration,
+            fare: fareFor(trip)
         }));
 
         return res.status(200).json(formattedTrips);
@@ -308,7 +308,7 @@ export const getDriverRideHistory = async (req: AuthRequest, res: Response) => {
       .lean();
 
     const rides = await Promise.all(trips.map(async (trip) => {
-      let passengerName = (trip as any).passengerName;
+      let passengerName = trip.passengerName;
       if (!passengerName) {
         const passenger = await PassengerModel.findById(trip.passengerId).lean();
         passengerName = passenger ? passenger.name : 'Passenger';
@@ -319,9 +319,9 @@ export const getDriverRideHistory = async (req: AuthRequest, res: Response) => {
         passengerName: passengerName || 'Passenger',
         from: trip.startLocation,
         to: trip.destination,
-        distance: (trip as any).estimatedDistance || 0,
-        duration: (trip as any).estimatedDuration || 0,
-        fare: (trip as any).fare !== undefined ? (trip as any).fare : calculateFare((trip as any).estimatedDistance || 0),
+        distance: trip.estimatedDistance || 0,
+        duration: trip.estimatedDuration || 0,
+        fare: fareFor(trip),
         status: trip.status,
         startDate: trip.startDate,
         endDate: trip.endDate,
@@ -349,13 +349,13 @@ export const getDriverReports = async (req: AuthRequest, res: Response) => {
     }).lean();
 
     const totalEarnings = completedTrips.reduce(
-      (sum, trip) => sum + ((trip as any).fare !== undefined ? (trip as any).fare : calculateFare((trip as any).estimatedDistance || 0)),
+      (sum, trip) => sum + fareFor(trip),
       0
     );
     const totalTrips = completedTrips.length;
     const avgFare = totalTrips > 0 ? totalEarnings / totalTrips : 0;
     const totalDistance = completedTrips.reduce(
-      (sum, trip) => sum + ((trip as any).estimatedDistance || 0),
+      (sum, trip) => sum + (trip.estimatedDistance || 0),
       0
     );
 
@@ -375,7 +375,7 @@ export const getDriverReports = async (req: AuthRequest, res: Response) => {
       const end = trip.endDate ? new Date(trip.endDate) : new Date();
       const idx = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 5;
       if (idx >= 0 && idx <= 5) {
-        months[idx].earnings += (trip as any).fare !== undefined ? (trip as any).fare : calculateFare((trip as any).estimatedDistance || 0);
+        months[idx].earnings += fareFor(trip);
         months[idx].trips += 1;
       }
     });
@@ -386,8 +386,7 @@ export const getDriverReports = async (req: AuthRequest, res: Response) => {
     completedTrips.forEach((trip) => {
       const end = trip.endDate ? new Date(trip.endDate) : new Date();
       const dayName = end.toLocaleDateString('en-US', { weekday: 'short' });
-      dayTotals[dayName] = (dayTotals[dayName] || 0) +
-        ((trip as any).fare !== undefined ? (trip as any).fare : calculateFare((trip as any).estimatedDistance || 0));
+      dayTotals[dayName] = (dayTotals[dayName] || 0) + fareFor(trip);
       dayCounts[dayName] = (dayCounts[dayName] || 0) + 1;
     });
     let topDay = 'N/A';

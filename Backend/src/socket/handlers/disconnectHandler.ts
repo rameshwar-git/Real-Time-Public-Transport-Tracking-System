@@ -1,4 +1,8 @@
 import { connectedUsers, disconnectTimeouts, emitToUser } from '../connectionManager';
+import PassengerModel from '@/models/users/UserPassengerModel';
+import DriverModel from '@/models/users/UserDriverModel';
+import { TripModel } from '@/models/trip/TripModel';
+import { restoreSeat } from '../utils/seats';
 
 /**
  * Registers the `disconnect` socket event.
@@ -11,13 +15,11 @@ export function registerDisconnectHandler(io: any, socket: any, userId: string) 
         if (userId) {
             connectedUsers.delete(userId);
 
-            const PassengerModel = require('@/models/users/UserPassengerModel').default;
             await PassengerModel.findByIdAndUpdate(userId, {
                 status: "OFFLINE",
                 lastSeen: new Date(),
             });
 
-            const DriverModel = require('@/models/users/UserDriverModel').default;
             await DriverModel.findByIdAndUpdate(userId, {
                 status: "OFFLINE",
                 lastSeen: new Date(),
@@ -25,7 +27,6 @@ export function registerDisconnectHandler(io: any, socket: any, userId: string) 
 
             // Auto-complete ongoing rides if a driver stays offline for more than 5 minutes
             try {
-                const { TripModel } = require('@/models/trip/TripModel');
                 const activeTripsCount = await TripModel.countDocuments({
                     driverId: userId,
                     status: { $in: ['scheduled', 'in_progress'] }
@@ -54,12 +55,7 @@ export function registerDisconnectHandler(io: any, socket: any, userId: string) 
                                 await trip.save();
 
                                 // Restore vehicle seat
-                                const VehicleModel = require('@/models/vehicles/VehicleModel').default;
-                                const vehicle = await VehicleModel.findById(trip.vehicleId);
-                                if (vehicle) {
-                                    const currentSeats = vehicle.availableSeats !== undefined ? vehicle.availableSeats : vehicle.capacity;
-                                    await VehicleModel.findByIdAndUpdate(trip.vehicleId, { availableSeats: currentSeats + 1 });
-                                }
+                                await restoreSeat(trip.vehicleId);
 
                                 // Notify passenger if connected
                                 emitToUser(io, trip.passengerId.toString(), "trip-completed", { tripId: trip._id, autoCompleted: true });

@@ -205,7 +205,6 @@ export const MapViewComponent: React.FC<Props> = (
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
     gpsButton: {
         position: 'absolute',
         bottom: 140, // Positioned above the bottom card elements

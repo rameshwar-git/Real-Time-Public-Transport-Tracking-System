@@ -1,4 +1,7 @@
 import { connectedUsers, userLocations, PROXIMITY_COMPLETION_RADIUS_KM, emitToUser } from '../connectionManager';
+import { TripModel } from '@/models/trip/TripModel';
+import { getDistance } from '@/utils/geometry';
+import { restoreSeat } from '../utils/seats';
 
 /**
  * Registers the `update-location` socket event.
@@ -18,9 +21,6 @@ export function registerLocationHandler(io: any, socket: any, userId: string) {
         });
 
         try {
-            const { TripModel } = require('@/models/trip/TripModel');
-            const { getDistance } = require('@/utils/geometry');
-
             // --- Broadcast driver location to passenger ---
             const activeTrip = await TripModel.findOne({
                 driverId: userId,
@@ -61,12 +61,7 @@ export function registerLocationHandler(io: any, socket: any, userId: string) {
                             await activeTrip.save();
 
                             // Restore vehicle seat
-                            const VehicleModel = require('@/models/vehicles/VehicleModel').default;
-                            const vehicle = await VehicleModel.findById(activeTrip.vehicleId);
-                            if (vehicle) {
-                                const currentSeats = vehicle.availableSeats !== undefined ? vehicle.availableSeats : vehicle.capacity;
-                                await VehicleModel.findByIdAndUpdate(activeTrip.vehicleId, { availableSeats: currentSeats + 1 });
-                            }
+                            await restoreSeat(activeTrip.vehicleId);
 
                             // Notify passenger
                             emitToUser(io, activeTrip.passengerId.toString(), "trip-completed", {

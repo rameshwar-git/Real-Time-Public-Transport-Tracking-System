@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
 import { colors, radius, shadow, spacing, type } from '@/constants/ui';
+import { calculateEstimatedFare, formatCurrency, roundToNearestFive } from '@/utils/fare';
 
 interface RideConfirmationBottomViewProps {
     onConfirm: () => void;
@@ -20,21 +21,6 @@ export const RideConfirmationBottomView = ({
         { id: 'tricycle', title: 'Tricycle', description: 'Economical, fast', seats: '3 seats' },
         { id: 'bus', title: 'Bus / Coaster', description: 'Spacious, group', seats: '15 seats' },
     ] as const;
-
-    const roundToNearestFive = (val: number): number => {
-        const rem = val % 5;
-        if (rem < 3) {
-            return Math.floor(val / 5) * 5;
-        } else {
-            return Math.ceil(val / 5) * 5;
-        }
-    };
-
-    const calculateEstimatedFare = (dist: number): number => {
-        if (!dist || isNaN(dist)) return 10;
-        if (dist <= 2.5) return 10;
-        return Number((10 + (dist - 2.5) * 2).toFixed(2));
-    };
 
     const estimatedFare = distance ? calculateEstimatedFare(distance) : null;
 
@@ -65,7 +51,7 @@ export const RideConfirmationBottomView = ({
                             </Text>
                             {finalCardFare !== null && (
                                 <Text style={[styles.cardPrice, isSelected && styles.selectedPriceText]}>
-                                    ₹{finalCardFare.toFixed(2)}
+                                    {formatCurrency(finalCardFare)}
                                 </Text>
                             )}
                             <Text style={[styles.cardDesc, isSelected && styles.selectedDescText]}>
@@ -80,7 +66,7 @@ export const RideConfirmationBottomView = ({
                 <View style={styles.fareContainer}>
                     <Text style={styles.fareLabel}>ESTIMATED TRIP COST ({selectedVehicleType.toUpperCase()})</Text>
                     <Text style={styles.fareValue}>
-                        ₹{roundToNearestFive(estimatedFare * (selectedVehicleType === 'tricycle' ? 0.8 : selectedVehicleType === 'bus' ? 1.5 : 1.0)).toFixed(2)}
+                        {formatCurrency(roundToNearestFive(estimatedFare * (selectedVehicleType === 'tricycle' ? 0.8 : selectedVehicleType === 'bus' ? 1.5 : 1.0)))}
                     </Text>
                     <Text style={styles.fareSubtext}>Base ₹10 for 2.5km + ₹2/km after</Text>
                 </View>

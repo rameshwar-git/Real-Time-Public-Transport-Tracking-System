@@ -9,6 +9,7 @@ import { getDistance } from "@/utils/geometry";
 import { getActiveTrip } from "@/services/apiService";
 import { useRideSocketEvents } from "@/hooks/ride/useRideSocketEvents";
 import { useRideRequestFlow } from "@/hooks/ride/useRideRequestFlow";
+import { upsertDriverLocation } from "@/utils/location";
 
 export function usePassengerDashboard() {
     const [userId, setUserId] = useState<string | null>(null);
@@ -103,17 +104,7 @@ export function usePassengerDashboard() {
 
                     // Immediately seed driver location so the route renders without waiting for socket
                     if (data.driverCurrentLocation) {
-                        setLocations((prev: any[]) => {
-                            const exists = prev.some((l: any) => l.userId === data.driverId);
-                            if (exists) {
-                                return prev.map((l: any) =>
-                                    l.userId === data.driverId
-                                        ? { ...l, currentLocation: data.driverCurrentLocation, vehicleId: l.vehicleId || { vehicleType: data.driverDetails?.vehicleType } }
-                                        : l
-                                );
-                            }
-                            return [...prev, { userId: data.driverId, currentLocation: data.driverCurrentLocation, vehicleId: { vehicleType: data.driverDetails?.vehicleType } }];
-                        });
+                        setLocations(prev => upsertDriverLocation(prev, data.driverId, data.driverCurrentLocation, data.driverDetails?.vehicleType));
                     }
 
                     // Fit map to show driver ↔ destination (or driver ↔ pickup) route
@@ -205,8 +196,6 @@ export function usePassengerDashboard() {
     useRideSocketEvents({
         socket,
         userId,
-        origin,
-        destination,
         searchTimeoutRef,
         currentDriverIndexRef,
         requestNextDriver,
@@ -227,6 +216,19 @@ export function usePassengerDashboard() {
 
     // --- Event Handlers ---
 
+    // Reset all ride/trip state back to defaults
+    const resetRideState = () => {
+        setAssignedDriverId(null);
+        setDriverDetails(null);
+        setTripId(null);
+        setOtp(null);
+        setTripStatus(null);
+        setIsConfirmed(false);
+        setDestination(null);
+        setDestinationText("");
+        setRouteDetails(null);
+    };
+
     const handleCancelSearch = () => {
         const currentDriver = pendingDriversRef.current[currentDriverIndexRef.current];
         if (currentDriver && currentDriver.userId) {
@@ -241,15 +243,7 @@ export function usePassengerDashboard() {
     };
 
     const handleDismissReceipt = () => {
-        setAssignedDriverId(null);
-        setDriverDetails(null);
-        setTripId(null);
-        setOtp(null);
-        setTripStatus(null);
-        setIsConfirmed(false);
-        setDestination(null);
-        setDestinationText("");
-        setRouteDetails(null);
+        resetRideState();
     };
 
     const handleCancelTrip = () => {
@@ -275,16 +269,8 @@ export function usePassengerDashboard() {
 
                         // Optimistic immediate UI reset so the user isn't stuck
                         // if the server's "trip-canceled" echo is delayed or lost
-                        setAssignedDriverId(null);
-                        setDriverDetails(null);
-                        setTripId(null);
-                        setOtp(null);
-                        setTripStatus(null);
-                        setIsConfirmed(false);
+                        resetRideState();
                         setIsSearching(false);
-                        setDestination(null);
-                        setDestinationText("");
-                        setRouteDetails(null);
                         stopSharing();
                         if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
                     }

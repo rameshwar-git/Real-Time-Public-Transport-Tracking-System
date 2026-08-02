@@ -12,27 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getDriverRideHistory } from '@/services/apiService';
-
-interface Ride {
-  id: string;
-  passengerName: string;
-  from: { latitude: number; longitude: number };
-  to: { latitude: number; longitude: number };
-  distance: number;
-  duration: number;
-  fare: number;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'canceled';
-  startDate?: string;
-  endDate?: string;
-  rating?: number | null;
-}
-
-const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  completed: { label: 'Completed', color: '#10B981', bg: '#ECFDF5' },
-  canceled: { label: 'Canceled', color: '#EF4444', bg: '#FEF2F2' },
-  scheduled: { label: 'Scheduled', color: '#F59E0B', bg: '#FFFBEB' },
-  in_progress: { label: 'In Progress', color: '#3B82F6', bg: '#EFF6FF' },
-};
+import { Ride, STATUS_META } from '@/types/ride';
+import { formatFare } from '@/utils/format';
 
 const formatDate = (value?: string) => {
   if (!value) return '—';
@@ -106,7 +87,7 @@ export default function RideHistoryScreen() {
         <View style={styles.rideFooter}>
           <Text style={styles.rideDate}>{formatDate(item.endDate || item.startDate)}</Text>
           <View style={styles.fareBox}>
-            <Text style={styles.fare}>₹{item.fare?.toFixed(2)}</Text>
+            <Text style={styles.fare}>{formatFare(item.fare)}</Text>
           </View>
         </View>
       </TouchableOpacity>

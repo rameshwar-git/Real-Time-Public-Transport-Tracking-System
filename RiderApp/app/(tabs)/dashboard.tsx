@@ -14,6 +14,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { getDriverEarnings, getWeeklyEarnings } from '@/services/apiService';
 import { router } from 'expo-router';
+import { formatFare } from '@/utils/format';
 
 const { width } = Dimensions.get('window');
 
@@ -132,7 +133,7 @@ export default function RiderDashboard() {
             <View>
               <Text style={styles.earningsLabel}>Total Earnings</Text>
               <Text style={styles.totalEarnings}>
-                ₹{earnings.totalEarnings.toFixed(2)}
+                {formatFare(earnings.totalEarnings)}
               </Text>
             </View>
             <View style={styles.earningsIconContainer}>
@@ -146,7 +147,7 @@ export default function RiderDashboard() {
 
           <View style={styles.earningsStats}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>₹{earnings.weeklyEarnings.toFixed(2)}</Text>
+              <Text style={styles.statValue}>{formatFare(earnings.weeklyEarnings)}</Text>
               <Text style={styles.statLabel}>This Week</Text>
             </View>
             <View style={[styles.statItem, styles.divider]}>

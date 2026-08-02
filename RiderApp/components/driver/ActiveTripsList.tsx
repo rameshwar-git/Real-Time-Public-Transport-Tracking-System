@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, LayoutAnimation } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, spacing } from '@/constants/ui';
+import { formatFare, formatKm } from '@/utils/format';
 
 interface ActiveTripsListProps {
     activeTrips: any[];
@@ -45,10 +46,10 @@ export const ActiveTripsList = ({ activeTrips, onStartTrip, onCancelTrip, onComp
                 <Text style={styles.tripStatus}>
                     {trip.status === 'scheduled' ? 'Awaiting Pickup' : 'In Progress'}
                     {trip.estimatedDistance !== undefined && trip.estimatedDuration !== undefined && (
-                        ` • ${trip.estimatedDistance.toFixed(1)} km (${trip.estimatedDuration} min)`
+                        ` • ${formatKm(trip.estimatedDistance)} (${trip.estimatedDuration} min)`
                     )}
                     {trip.fare !== undefined && (
-                        ` • ₹${Number(trip.fare).toFixed(2)}`
+                        ` • ${formatFare(trip.fare)}`
                     )}
                 </Text>
             </View>

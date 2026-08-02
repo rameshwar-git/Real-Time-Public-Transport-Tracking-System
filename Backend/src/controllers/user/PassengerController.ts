@@ -6,7 +6,7 @@ import DriverModel from '@/models/users/UserDriverModel';
 import VehicleModel from '@/models/vehicles/VehicleModel';
 import DriverLocationModel from '@/models/location/DriverLocation';
 import PassengerLocationModel from '@/models/location/PassengerLocation';
-import { calculateFare } from '@/utils/geometry';
+import { fareFor } from '@/utils/geometry';
 import { createPassengerLocation } from '@controllers/location/LocationController';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -195,7 +195,7 @@ export const getRecentRides = async (req: AuthRequest, res: Response) => {
 
     const rides = completedTrips.map(trip => {
       const endDate = trip.endDate ? new Date(trip.endDate) : new Date();
-      const calculatedFare = trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0);
+      const calculatedFare = fareFor(trip);
       return {
         id: trip._id,
         from: 'Start Location',
@@ -234,7 +234,7 @@ export const getPassengerStats = async (req: AuthRequest, res: Response) => {
       ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length)
       : 0;
 
-    const totalSpent = completedTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
+    const totalSpent = completedTrips.reduce((sum, trip) => sum + fareFor(trip), 0);
 
     return res.status(200).json({
       totalRides,
@@ -355,7 +355,7 @@ export const getActiveTrip = async (req: AuthRequest, res: Response) => {
         vehicleType: vehicle?.vehicleType,
         estimatedDistance: activeTrip.estimatedDistance,
         estimatedDuration: activeTrip.estimatedDuration,
-        fare: activeTrip.fare !== undefined ? activeTrip.fare : calculateFare(activeTrip.estimatedDistance || 0)
+        fare: fareFor(activeTrip)
       }
     });
   } catch (err: any) {
