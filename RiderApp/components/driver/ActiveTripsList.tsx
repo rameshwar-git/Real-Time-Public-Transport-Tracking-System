@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, LayoutAnimation } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { colors, radius, spacing } from '@/constants/ui';
 
 interface ActiveTripsListProps {
     activeTrips: any[];
@@ -52,7 +53,7 @@ export const ActiveTripsList = ({ activeTrips, onStartTrip, onCancelTrip, onComp
                 <MaterialIcons
                     name={isExpanded ? "expand-more" : "expand-less"}
                     size={24}
-                    color="#F8FAFC"
+                    color={colors.textSecondary}
                 />
             </TouchableOpacity>
 
@@ -112,28 +113,28 @@ const styles = StyleSheet.create({
     },
     tripsHeader: {
         fontSize: 16,
-        fontWeight: 'bold',
-        color: '#F8FAFC'
+        fontWeight: '700',
+        color: colors.text
     },
     tripCard: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#334155',
-        padding: 12,
-        borderRadius: 12,
-        marginBottom: 8,
+        backgroundColor: colors.inputBg,
+        padding: spacing.md,
+        borderRadius: radius.md,
+        marginBottom: spacing.sm,
         borderWidth: 1,
-        borderColor: '#475569',
+        borderColor: colors.border,
     },
     tripPassenger: {
         fontSize: 16,
-        fontWeight: 'bold',
-        color: '#F8FAFC'
+        fontWeight: '700',
+        color: colors.text
     },
     tripStatus: {
         fontSize: 12,
-        color: '#94A3B8',
+        color: colors.textSecondary,
         marginTop: 4
     },
     tripActions: {
@@ -142,14 +143,14 @@ const styles = StyleSheet.create({
         marginLeft: 10
     },
     otpBtn: {
-        backgroundColor: '#3B82F6',
+        backgroundColor: colors.primary,
         paddingVertical: 8,
         paddingHorizontal: 14,
-        borderRadius: 8
+        borderRadius: radius.sm
     },
     btnTextSmall: {
         color: '#fff',
-        fontWeight: 'bold',
+        fontWeight: '700',
         fontSize: 12
     }
 });

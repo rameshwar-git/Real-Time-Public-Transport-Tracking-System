@@ -16,6 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ButtonComponent from '@/components/button';
 import { getDriverProfile, updateDriverProfile } from '@/services/apiService';
 import { handleLogout } from '@/hooks/auth/auth';
+import { colors, radius, shadow, spacing, type } from '@/constants/ui';
 
 export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
@@ -137,22 +138,22 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#10B981" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading profile...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
-            <View style={styles.profileIconContainer}>
-              <MaterialCommunityIcons name="account-circle" size={80} color="#10B981" />
+            <View style={styles.avatarRing}>
+              <MaterialCommunityIcons name="account" size={48} color={colors.primary} />
             </View>
             <Text style={styles.greeting}>{driverData.name || 'Driver'}</Text>
             <Text style={styles.subtitle}>
@@ -163,99 +164,132 @@ export default function ProfileScreen() {
           {/* Personal Information */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <MaterialCommunityIcons name="card-account-details-outline" size={24} color="#1F2937" />
+              <MaterialCommunityIcons name="card-account-details-outline" size={20} color={colors.primary} />
               <Text style={styles.sectionTitle}>Personal Details</Text>
               {!isEditing && (
                 <TouchableOpacity style={styles.editBadge} onPress={handleEnableEdit}>
-                  <MaterialCommunityIcons name="pencil" size={14} color="#10B981" />
+                  <MaterialCommunityIcons name="pencil" size={13} color={colors.primary} />
                   <Text style={styles.editBadgeText}>Edit</Text>
                 </TouchableOpacity>
               )}
             </View>
 
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              style={[styles.input, styles.disabledInput]}
-              value={driverData.name}
-              editable={false}
-              placeholder="John Doe"
-              placeholderTextColor="#9CA3AF"
-            />
+            <View style={styles.field}>
+              <Text style={styles.label}>Full Name</Text>
+              <View style={[styles.inputWrap, styles.inputDisabled]}>
+                <MaterialCommunityIcons name="account-outline" size={18} color={colors.textMuted} />
+                <TextInput
+                  style={styles.input}
+                  value={driverData.name}
+                  editable={false}
+                  placeholder="John Doe"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
 
-            <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={[styles.input, !isEditing && styles.disabledInput]}
-              value={driverData.phone}
-              onChangeText={(text) => setDriverData({ ...driverData, phone: text })}
-              editable={isEditing}
-              keyboardType="phone-pad"
-              placeholder="+1234567890"
-              placeholderTextColor="#9CA3AF"
-            />
+            <View style={styles.field}>
+              <Text style={styles.label}>Phone Number</Text>
+              <View style={[styles.inputWrap, !isEditing && styles.inputDisabled]}>
+                <MaterialCommunityIcons name="phone-outline" size={18} color={colors.textMuted} />
+                <TextInput
+                  style={styles.input}
+                  value={driverData.phone}
+                  onChangeText={(text) => setDriverData({ ...driverData, phone: text })}
+                  editable={isEditing}
+                  keyboardType="phone-pad"
+                  placeholder="+1234567890"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
 
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={[styles.input, styles.disabledInput]}
-              value={driverData.email}
-              editable={false}
-              placeholder="john@example.com"
-            />
+            <View style={styles.field}>
+              <Text style={styles.label}>Email Address</Text>
+              <View style={[styles.inputWrap, styles.inputDisabled]}>
+                <MaterialCommunityIcons name="email-outline" size={18} color={colors.textMuted} />
+                <TextInput
+                  style={styles.input}
+                  value={driverData.email}
+                  editable={false}
+                  placeholder="john@example.com"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
           </View>
 
           {/* Vehicle Information */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <MaterialCommunityIcons name="car-info" size={24} color="#1F2937" />
+              <MaterialCommunityIcons name="car-info" size={20} color={colors.primary} />
               <Text style={styles.sectionTitle}>Vehicle Details</Text>
             </View>
 
-            <Text style={styles.label}>Vehicle Type</Text>
-            <View style={[styles.typeSelector, !isEditing && { opacity: 0.6 }]}>
-              {['tricycle', 'bus'].map((type) => (
-                <Text
-                  key={type}
-                  style={[
-                    styles.typeOption,
-                    vehicleData.vehicleType === type && styles.typeOptionSelected
-                  ]}
-                  onPress={() => isEditing && setVehicleData({ ...vehicleData, vehicleType: type })}
-                >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </Text>
-              ))}
+            <View style={styles.field}>
+              <Text style={styles.label}>Vehicle Type</Text>
+              <View style={[styles.typeSelector, !isEditing && { opacity: 0.7 }]}>
+                {['tricycle', 'bus'].map((typeOption) => (
+                  <Text
+                    key={typeOption}
+                    style={[
+                      styles.typeOption,
+                      vehicleData.vehicleType === typeOption && styles.typeOptionSelected
+                    ]}
+                    onPress={() => isEditing && setVehicleData({ ...vehicleData, vehicleType: typeOption })}
+                  >
+                    {typeOption.charAt(0).toUpperCase() + typeOption.slice(1)}
+                  </Text>
+                ))}
+              </View>
             </View>
 
-            <Text style={styles.label}>Vehicle Model</Text>
-            <TextInput
-              style={[styles.input, !isEditing && styles.disabledInput]}
-              value={vehicleData.vehicleModel}
-              onChangeText={(text) => setVehicleData({ ...vehicleData, vehicleModel: text })}
-              editable={isEditing}
-              placeholder="e.g. Honda Civic, Bajaj RE"
-              placeholderTextColor="#9CA3AF"
-            />
+            <View style={styles.field}>
+              <Text style={styles.label}>Vehicle Model</Text>
+              <View style={[styles.inputWrap, !isEditing && styles.inputDisabled]}>
+                <MaterialCommunityIcons name="car-outline" size={18} color={colors.textMuted} />
+                <TextInput
+                  style={styles.input}
+                  value={vehicleData.vehicleModel}
+                  onChangeText={(text) => setVehicleData({ ...vehicleData, vehicleModel: text })}
+                  editable={isEditing}
+                  placeholder="e.g. Honda Civic, Bajaj RE"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
 
-            <Text style={styles.label}>Vehicle Number (Plate)</Text>
-            <TextInput
-              style={[styles.input, !isEditing && styles.disabledInput]}
-              value={vehicleData.vehicleNumber}
-              onChangeText={(text) => setVehicleData({ ...vehicleData, vehicleNumber: text })}
-              editable={isEditing}
-              placeholder="e.g. MH12 AB 1234"
-              placeholderTextColor="#9CA3AF"
-              autoCapitalize="characters"
-            />
+            <View style={styles.field}>
+              <Text style={styles.label}>Vehicle Number (Plate)</Text>
+              <View style={[styles.inputWrap, !isEditing && styles.inputDisabled]}>
+                <MaterialCommunityIcons name="newspaper-variant-outline" size={18} color={colors.textMuted} />
+                <TextInput
+                  style={styles.input}
+                  value={vehicleData.vehicleNumber}
+                  onChangeText={(text) => setVehicleData({ ...vehicleData, vehicleNumber: text })}
+                  editable={isEditing}
+                  placeholder="e.g. MH12 AB 1234"
+                  placeholderTextColor="#9CA3AF"
+                  autoCapitalize="characters"
+                />
+              </View>
+            </View>
 
-            <Text style={styles.label}>Seating Capacity</Text>
-            <TextInput
-              style={[styles.input, !isEditing && styles.disabledInput]}
-              value={vehicleData.capacity}
-              onChangeText={(text) => setVehicleData({ ...vehicleData, capacity: text })}
-              editable={isEditing}
-              keyboardType="number-pad"
-              placeholder="e.g. 4"
-              placeholderTextColor="#9CA3AF"
-            />
+            <View style={styles.field}>
+              <Text style={styles.label}>Seating Capacity</Text>
+              <View style={[styles.inputWrap, !isEditing && styles.inputDisabled]}>
+                <MaterialCommunityIcons name="seat-outline" size={18} color={colors.textMuted} />
+                <TextInput
+                  style={styles.input}
+                  value={vehicleData.capacity}
+                  onChangeText={(text) => setVehicleData({ ...vehicleData, capacity: text })}
+                  editable={isEditing}
+                  keyboardType="number-pad"
+                  placeholder="e.g. 4"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
           </View>
 
           {isEditing && (
@@ -276,9 +310,9 @@ export default function ProfileScreen() {
           )}
 
           <View style={styles.logoutContainer}>
-            <ButtonComponent 
-              title="Logout" 
-              onPress={handleLogout} 
+            <ButtonComponent
+              title="Logout"
+              onPress={handleLogout}
             />
           </View>
         </ScrollView>
@@ -290,152 +324,160 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.bg,
   },
   center: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: spacing.md,
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
     paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: spacing.xxl,
+    paddingVertical: spacing.xxl,
+    backgroundColor: colors.primarySoft,
+    marginHorizontal: -spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
-  profileIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#ECFDF5',
+  avatarRing: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
+    ...shadow.elevated,
   },
   greeting: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 4,
+    fontSize: type.title.fontSize,
+    fontWeight: '800',
+    color: colors.text,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
   section: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
+    ...shadow.card,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: type.h2.fontSize,
+    fontWeight: '700',
+    color: colors.text,
     flex: 1,
   },
   editBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
     paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#ECFDF5',
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: '#10B981',
+    borderColor: colors.primary,
   },
   editBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#10B981',
+    color: colors.primary,
+  },
+  field: {
+    marginBottom: spacing.md,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#4B5563',
+    ...type.label,
     marginBottom: 6,
-    marginTop: 10,
+  },
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    gap: spacing.sm,
+  },
+  inputDisabled: {
+    backgroundColor: '#EEF0F4',
+    opacity: 0.9,
   },
   input: {
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#1F2937',
-  },
-  disabledInput: {
-    backgroundColor: '#E5E7EB',
-    color: '#6B7280',
+    flex: 1,
+    fontSize: type.body.fontSize,
+    color: colors.text,
+    padding: 0,
   },
   typeSelector: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   typeOption: {
     flex: 1,
     textAlign: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#F3F4F6',
+    paddingVertical: 13,
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     fontSize: 15,
-    color: '#4B5563',
-    fontWeight: '500',
+    color: colors.textSecondary,
+    fontWeight: '600',
     overflow: 'hidden',
   },
   typeOptionSelected: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#10B981',
-    color: '#10B981',
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+    color: colors.primaryDark,
   },
   editActions: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   cancelBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    borderRadius: radius.md,
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: colors.borderStrong,
     alignItems: 'center',
   },
   cancelBtnText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   saveBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#10B981',
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
     alignItems: 'center',
   },
   saveBtnText: {
@@ -444,7 +486,7 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   logoutContainer: {
-    marginTop: 8,
-    marginBottom: 10,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
   },
 });

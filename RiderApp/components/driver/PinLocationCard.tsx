@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { MapPin } from "lucide-react-native";
+import { colors, radius, shadow, spacing } from "@/constants/ui";
 
 interface PinLocationCardProps {
     pinAddress: string;
@@ -31,45 +32,39 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: '#1E293B',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
+        backgroundColor: colors.surface,
+        borderTopLeftRadius: radius.xl,
+        borderTopRightRadius: radius.xl,
+        padding: spacing.xl,
+        ...shadow.pop,
         zIndex: 1000,
-        borderWidth: 1.5,
-        borderColor: '#334155',
     },
     pinLocationLabel: {
         fontSize: 11,
-        fontWeight: 'bold',
-        color: '#94A3B8',
+        fontWeight: '700',
+        color: colors.textSecondary,
         letterSpacing: 1.5,
-        marginBottom: 12,
+        marginBottom: spacing.md,
     },
     pinAddressContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#0F172A',
-        borderColor: '#334155',
-        borderWidth: 1.5,
-        borderRadius: 14,
+        backgroundColor: colors.inputBg,
+        borderColor: colors.border,
+        borderWidth: 1,
+        borderRadius: radius.md,
         padding: 14,
         marginBottom: 18,
     },
     pinAddressText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#F8FAFC',
+        color: colors.text,
         flex: 1,
     },
     confirmPinButton: {
-        backgroundColor: '#10B981',
-        borderRadius: 14,
+        backgroundColor: colors.primary,
+        borderRadius: radius.md,
         paddingVertical: 16,
         alignItems: 'center',
         justifyContent: 'center',
@@ -77,6 +72,6 @@ const styles = StyleSheet.create({
     confirmPinButtonText: {
         color: '#FFFFFF',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: '700',
     },
 });
