@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Platform, View, StyleSheet, Animated, TouchableOpacity } from "react-native";
 import { UserLocation } from "@/types/map";
 import { Region } from "react-native-maps";
@@ -10,6 +10,9 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { CenterPin } from "./CenterPin";
 import { renderDestinationMarker } from "./DestinationMarker";
 import { renderDriverMarker } from "./DriverMarker";
+
+// GPS current-position view: animate to show ~100m of radius around the user.
+const GPS_RADIUS_METERS = 100;
 
 type Props = {
     MapView: any;
@@ -57,6 +60,29 @@ export const MapViewComponent: React.FC<Props> = (
     const liftAnim = useRef(new Animated.Value(0)).current;
     const isAnimatingRef = useRef(false);
 
+    // Auto-follow the assigned vehicle at a street-level zoom while the trip is active,
+    // re-centering on each live driver-location update so the vehicle is tracked in real time.
+    useEffect(() => {
+        const isTracking =
+            isConfirmed &&
+            tripStatus != null &&
+            tripStatus !== 'completed' &&
+            tripStatus !== 'cancelled';
+        if (!isTracking || !assignedDriverLocation || !mapRef.current) return;
+        if (
+            typeof assignedDriverLocation.latitude !== 'number' ||
+            typeof assignedDriverLocation.longitude !== 'number' ||
+            isNaN(assignedDriverLocation.latitude) ||
+            isNaN(assignedDriverLocation.longitude)
+        ) return;
+
+        isAnimatingRef.current = true;
+        mapRef.current.animateToRegion(toGpsRegion(assignedDriverLocation), 800);
+        setTimeout(() => {
+            isAnimatingRef.current = false;
+        }, 900);
+    }, [assignedDriverLocation, isConfirmed, tripStatus]);
+
     if (!MapView || !mapRegion) return null;
 
     const handleRegionChange = () => {
@@ -83,20 +109,24 @@ export const MapViewComponent: React.FC<Props> = (
         }).start();
     };
 
+    // Build a map region that shows GPS_RADIUS_METERS of radius around a coordinate.
+    // Using degree spans (not a pixel-based zoom) keeps the same spatial scale on any device.
+    const toGpsRegion = (center: { latitude: number; longitude: number }): Region => {
+        const latDelta = (GPS_RADIUS_METERS * 2) / 111320;
+        const lonDelta = latDelta / Math.max(Math.cos((center.latitude * Math.PI) / 180), 0.01);
+        return {
+            latitude: center.latitude,
+            longitude: center.longitude,
+            latitudeDelta: latDelta,
+            longitudeDelta: lonDelta,
+        };
+    };
+
     const handleCenterOnUser = () => {
         if (origin && origin.latitude && origin.longitude && mapRef.current) {
             isAnimatingRef.current = true;
-            mapRef.current.animateCamera(
-                {
-                    center: {
-                        latitude: origin.latitude,
-                        longitude: origin.longitude,
-                    },
-                    zoom: 20, // street-level zoom (~100m radius)
-                },
-                { duration: 1000 }
-            );
-            // Release the guard after animation completes
+            mapRef.current.animateToRegion(toGpsRegion(origin), 2000);
+            // Release the guard after the animation completes
             setTimeout(() => {
                 isAnimatingRef.current = false;
             }, 1100);

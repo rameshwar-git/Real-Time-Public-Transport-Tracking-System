@@ -1,5 +1,8 @@
 import React from "react";
+import { Image, StyleSheet } from "react-native";
 import { getDistance, calculateRouteMatch } from "@/utils/geometry";
+
+const MARKER_SIZE = 40;
 
 export const renderDriverMarker = (
   Marker: any,
@@ -93,15 +96,26 @@ export const renderDriverMarker = (
       coordinate={u.currentLocation}
       title={title}
       description={description}
-      image={
-        isDriver
-          ? u.vehicleId?.vehicleType === "tricycle"
-            ? require("@assets/map/tricycle.png")
-            : require("@assets/map/bus.png")
-          : require("@assets/map/tricycle.png")
-      } 
-      style={{ width: 30, height: 30 }}
-      resizeMode='contain'
-    />
+      anchor={{ x: 0.5, y: 0.5 }}
+    >
+      <Image
+        source={
+          isDriver
+            ? u.vehicleId?.vehicleType === "tricycle"
+              ? require("@assets/map/tricycle.png")
+              : require("@assets/map/bus.png")
+            : require("@assets/map/tricycle.png")
+        }
+        style={styles.markerImage}
+        resizeMode="contain"
+      />
+    </Marker>
   );
 };
+
+const styles = StyleSheet.create({
+  markerImage: {
+    width: MARKER_SIZE,
+    height: MARKER_SIZE,
+  },
+});

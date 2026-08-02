@@ -13,6 +13,9 @@ import { renderDestinationMarker } from "./DestinationMarker";
 import { renderPassengerMarker } from "./PassengerMarker";
 import { renderDriverMarker } from "./DriverMarker";
 
+// GPS current-position view: animate to show ~100m of radius around the driver.
+const GPS_RADIUS_METERS = 100;
+
 type Props = {
     MapView: any;
     Marker: any;
@@ -74,14 +77,22 @@ export const MapViewComponent: React.FC<Props> = (
         }).start();
     };
 
+    // Build a map region that shows GPS_RADIUS_METERS of radius around a coordinate.
+    // Using degree spans (not a pixel-based zoom) keeps the same spatial scale on any device.
+    const toGpsRegion = (center: { latitude: number; longitude: number }): Region => {
+        const latDelta = (GPS_RADIUS_METERS * 2) / 111320;
+        const lonDelta = latDelta / Math.max(Math.cos((center.latitude * Math.PI) / 180), 0.01);
+        return {
+            latitude: center.latitude,
+            longitude: center.longitude,
+            latitudeDelta: latDelta,
+            longitudeDelta: lonDelta,
+        };
+    };
+
     const handleCenterOnUser = () => {
         if (origin && origin.latitude && origin.longitude && mapRef.current) {
-            mapRef.current.animateToRegion({
-                latitude: origin.latitude,
-                longitude: origin.longitude,
-                latitudeDelta: 0.0040, // zoom level for radius
-                longitudeDelta: 0.0040,
-            }, 1000);
+            mapRef.current.animateToRegion(toGpsRegion(origin), 2000);
         }
     };
 
