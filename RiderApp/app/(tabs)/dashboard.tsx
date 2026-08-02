@@ -24,6 +24,7 @@ export default function RiderDashboard() {
     weeklyChange: 0,
     completedRides: 0,
     acceptanceRate: 0,
+    rating: 0,
   });
 
   const [chartData, setChartData] = useState<Array<{ day: string; amount: number }>>([]);
@@ -52,6 +53,7 @@ export default function RiderDashboard() {
           weeklyChange: earningsData.weeklyChange || 0,
           completedRides: earningsData.completedRides || 0,
           acceptanceRate: earningsData.acceptanceRate || 0,
+          rating: earningsData.rating || 0,
         });
       }
 
@@ -181,6 +183,16 @@ export default function RiderDashboard() {
               </View>
               <Text style={styles.metricValue}>{earnings.acceptanceRate}%</Text>
               <Text style={styles.metricLabel}>Acceptance Rate</Text>
+            </View>
+
+            <View style={styles.metricCard}>
+              <View style={styles.metricIconContainer}>
+                <MaterialCommunityIcons name="star" size={28} color="#8B5CF6" />
+              </View>
+              <Text style={styles.metricValue}>
+                {earnings.rating > 0 ? earnings.rating.toFixed(1) : '—'}
+              </Text>
+              <Text style={styles.metricLabel}>Your Rating</Text>
             </View>
           </View>
         </View>

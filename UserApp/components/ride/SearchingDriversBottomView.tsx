@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, shadow, spacing } from '@/constants/ui';
 
 interface Driver {
@@ -7,6 +8,7 @@ interface Driver {
     pickupDist: number;
     routeMatchPercentage: number;
     availableSeats: number;
+    rating?: number | null;
     driverDetails?: {
         name: string;
         phone: string;
@@ -97,6 +99,12 @@ export const SearchingDriversBottomView = ({
                                 </View>
 
                                 <View style={styles.rightCol}>
+                                    {driver.rating ? (
+                                        <View style={styles.ratingRow}>
+                                            <MaterialIcons name="star" size={14} color="#F59E0B" />
+                                            <Text style={styles.ratingText}>{driver.rating.toFixed(1)}</Text>
+                                        </View>
+                                    ) : null}
                                     <View style={[styles.badge, { backgroundColor: matchStyle.bg }]}>
                                         <Text style={[styles.badgeText, { color: matchStyle.text }]}>
                                             {Math.round(driver.routeMatchPercentage || 0)}% Match
@@ -270,6 +278,17 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
         justifyContent: 'center',
         marginLeft: 10,
+    },
+    ratingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    ratingText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#F59E0B',
+        marginLeft: 4,
     },
     badge: {
         paddingHorizontal: 8,

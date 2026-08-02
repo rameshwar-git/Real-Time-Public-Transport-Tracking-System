@@ -92,3 +92,12 @@ export const getDriverReports = async () => {
     if (!res.ok) throw new Error("Failed to fetch driver reports");
     return await res.json();
 };
+
+export const ratePassenger = async (tripId: string, rating: number) => {
+    const res = await authFetch(`/trips/rate-passenger/${tripId}`, {
+        method: "PUT",
+        body: JSON.stringify({ rating }),
+    });
+    if (!res.ok) throw new Error("Failed to submit rating");
+    return await res.json();
+};

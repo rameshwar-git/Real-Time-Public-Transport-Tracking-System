@@ -1,16 +1,17 @@
-import React from "react";
-import { View, StyleSheet, Platform, Dimensions, TouchableOpacity, Text } from "react-native";
+import React, { useState, useRef } from "react";
+import { View, StyleSheet, Platform, Dimensions, TouchableOpacity, Text, Pressable, Keyboard } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowLeft } from "lucide-react-native";
 import { colors, radius, shadow, spacing } from "@/constants/ui";
 
 import { useDriverDashboard } from "@/hooks/driver/useDriverDashboard";
 import { MapViewComponent } from "@components/map/MapViewComponent";
-import { DestinationSearch } from "@components/map/DestinationSearch";
+import { DestinationSearch, DestinationSearchHandle } from "@components/map/DestinationSearch";
 import { IncomingRequestCard } from "@/components/driver/IncomingRequestCard";
 import { ActiveTripsList } from "@/components/driver/ActiveTripsList";
 import { DutyToggle } from "@/components/driver/DutyToggle";
 import { PinLocationCard } from "@/components/driver/PinLocationCard";
+import { ReviewPassengerModal } from "@/components/driver/ReviewPassengerModal";
 
 export default function DriverDashboard() {
     const {
@@ -40,11 +41,20 @@ export default function DriverDashboard() {
         handleDestinationSelect,
         handleDestinationSearchFocus,
         handleDestinationPress,
+        dismissCompletedTrip,
     } = useDriverDashboard();
 
     const MapView = mapComponents?.MapView;
     const Marker = mapComponents?.Marker;
     const mapHeight = Math.round(Dimensions.get("window").height);
+
+    // The most recently completed trip is shown in a popup review card.
+    const completedTrip = activeTrips.find(t => t.status === 'completed') || null;
+
+    // When the destination search dropdown is open, a tap-away overlay covers
+    // the screen so tapping outside the box closes it.
+    const searchRef = useRef<DestinationSearchHandle>(null);
+    const [searchOpen, setSearchOpen] = useState(false);
 
     return (
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
@@ -53,14 +63,26 @@ export default function DriverDashboard() {
                     <View style={styles.unifiedTopBar}>
                         <View style={styles.searchWrapper}>
                             <DestinationSearch
+                                ref={searchRef}
                                 placeholder="Set your destination..."
                                 initialQuery={destinationText}
                                 onSelect={handleDestinationSelect}
                                 onFocus={handleDestinationSearchFocus}
                                 onChooseOnMap={handleChooseOnMap}
+                                onFocusChange={setSearchOpen}
                             />
                         </View>
                     </View>
+                )}
+
+                {searchOpen && (
+                    <Pressable
+                        style={styles.searchDismissOverlay}
+                        onPress={() => {
+                            Keyboard.dismiss();
+                            searchRef.current?.close();
+                        }}
+                    />
                 )}
 
                 {isChoosingOnMap && (
@@ -131,6 +153,11 @@ export default function DriverDashboard() {
                         />
                     </View>
                 )}
+
+                <ReviewPassengerModal
+                    trip={completedTrip}
+                    onDismiss={dismissCompletedTrip}
+                />
             </View>
         </SafeAreaView>
     );
@@ -138,6 +165,15 @@ export default function DriverDashboard() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
+    searchDismissOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 50,
+        backgroundColor: 'transparent',
+    },
     backButton: {
         position: 'absolute',
         top: Platform.OS === 'ios' ? 60 : 20,

@@ -31,8 +31,16 @@ export const useAutoDropoff = ({ socket, origin, activeTrips, setActiveTrips }: 
                         trip.destination.latitude,
                         trip.destination.longitude
                     );
-                    if (dist <= 0.3) { // 100 meters
+                    if (dist <= 0.3) { // 300 meters
                         socket.emit("dropoff-passenger", { tripId: trip.tripId });
+                        // Mark the trip completed locally so the completion card
+                        // (with the passenger rating option) appears, matching the
+                        // manual "Complete Ride" flow.
+                        setActiveTrips(prev =>
+                            prev.map(t =>
+                                t.tripId === trip.tripId ? { ...t, status: 'completed' } : t
+                            )
+                        );
                     }
                 }
             }

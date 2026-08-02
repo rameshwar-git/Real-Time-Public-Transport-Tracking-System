@@ -27,6 +27,7 @@ export default function App() {
         driverDetails,
         otp,
         tripStatus,
+        tripId,
         routeDetails,
         matchedDrivers,
         currentDriverIndex,
@@ -146,6 +147,7 @@ export default function App() {
                             origin={origin}
                             destination={destination}
                             onDismiss={handleDismissReceipt}
+                            tripId={tripId}
                         />
                     )}
                 </View>

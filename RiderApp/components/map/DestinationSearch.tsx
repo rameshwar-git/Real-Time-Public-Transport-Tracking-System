@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useImperativeHandle, forwardRef } from "react";
 import { FlatList, Text, View, StyleSheet, TouchableOpacity, Keyboard } from "react-native";
 import { getPlacePredictions } from "@/hooks/location/getPlacePredictions";
 import { getPlaceDetails } from "@/hooks/location/getPlaceDetails";
@@ -21,17 +21,35 @@ interface Props {
     initialQuery?: string;
     onFocus?: () => void;
     onChooseOnMap?: () => void;
+    onFocusChange?: (focused: boolean) => void;
 }
 interface Cord {
     latitude: number;
     longitude: number;
 }
 
-export const DestinationSearch: React.FC<Props> = ({ onSelect, placeholder = "Search destination", style, initialQuery = "", onFocus, onChooseOnMap }) => {
+export interface DestinationSearchHandle {
+    close: () => void;
+}
+
+export const DestinationSearch = forwardRef<DestinationSearchHandle, Props>(({ onSelect, placeholder = "Search destination", style, initialQuery = "", onFocus, onChooseOnMap, onFocusChange }, ref) => {
     const [query, setQuery] = useState<string>(initialQuery);
     const [results, setResults] = useState<PlacePrediction[]>([]);
     const [recentSearches, setRecentSearches] = useState<PlacePrediction[]>([]);
     const [isFocused, setIsFocused] = useState<boolean>(false);
+
+    // Notify the parent whenever the dropdown opens/closes so it can show a
+    // tap-away overlay that dismisses the search when tapped outside.
+    useEffect(() => {
+        onFocusChange?.(isFocused);
+    }, [isFocused]);
+
+    useImperativeHandle(ref, () => ({
+        close: () => {
+            Keyboard.dismiss();
+            setIsFocused(false);
+        },
+    }));
 
     useEffect(() => {
         const loadRecent = async () => {
@@ -197,7 +215,7 @@ export const DestinationSearch: React.FC<Props> = ({ onSelect, placeholder = "Se
             )}
         </View>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {

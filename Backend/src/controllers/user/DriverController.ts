@@ -6,6 +6,7 @@ import { TripModel } from '@/models/trip/TripModel';
 import { createDriverLocation } from '@/controllers/location/LocationController';
 import { createVehicle } from '@/controllers/vehicle/VehicleController';
 import { calculateFare } from '@/utils/geometry';
+import { driverAvgRating } from '@/utils/rating';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { AuthRequest } from "@/middleware/verifyToken";
@@ -148,12 +149,21 @@ export const getDriverEarnings = async (req: AuthRequest, res: Response) => {
             ? ((weeklyEarnings - lastWeekEarnings) / lastWeekEarnings * 100).toFixed(1)
             : 0;
 
+        // Driver's average rating (given by passengers), drives matching priority.
+        let rating: number | null = null;
+        try {
+            rating = await driverAvgRating(driverId);
+        } catch (err) {
+            console.error("Error loading driver rating:", err);
+        }
+
         return res.status(200).json({
             totalEarnings: Number(totalEarnings.toFixed(2)),
             weeklyEarnings: Number(weeklyEarnings.toFixed(2)),
             weeklyChange: Number(weeklyChange),
             completedRides: completedTrips.length,
-            acceptanceRate
+            acceptanceRate,
+            rating
         });
     } catch (err: any) {
         return res.status(500).json({ error: err.message });

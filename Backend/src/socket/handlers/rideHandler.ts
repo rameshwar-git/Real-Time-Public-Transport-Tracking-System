@@ -66,6 +66,15 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
             console.error("Error calculating driver route match percentage or fare:", err);
         }
 
+        // Passenger's average rating (drivers see this on the incoming request)
+        let passengerRating: number | null = null;
+        try {
+            const { passengerAvgRating } = require('@/utils/rating');
+            passengerRating = await passengerAvgRating(passengerId);
+        } catch (err) {
+            console.error("Error loading passenger rating:", err);
+        }
+
         if (driverSocketId) {
             console.log(`Sending ride request to driver ${driverId} for passenger ${passengerId} with ${routeMatchPercentage.toFixed(0)}% match and fare ₹${fare}`);
             io.to(driverSocketId).emit("ride-request", {
@@ -75,7 +84,8 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
                 estimatedDistance,
                 estimatedDuration,
                 routeMatchPercentage,
-                fare
+                fare,
+                passengerRating
             });
         } else {
             console.log(`Driver ${driverId} not currently connected to sockets.`);

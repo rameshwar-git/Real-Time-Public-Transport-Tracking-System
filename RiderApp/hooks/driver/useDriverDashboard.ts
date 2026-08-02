@@ -210,6 +210,15 @@ export function useDriverDashboard() {
     const completeTrip = (trip: any) => {
         if (!trip || !trip.tripId) return;
         socket.emit("dropoff-passenger", { tripId: trip.tripId });
+        // Keep the trip visible in a "Completed" state so the driver can rate
+        // the passenger before dismissing the card.
+        setActiveTrips(prev => prev.map(t => t.tripId === trip.tripId ? { ...t, status: 'completed' } : t));
+    };
+
+    const dismissCompletedTrip = (trip: any) => {
+        if (!trip || !trip.tripId) return;
+        // Remove a completed trip from the list once the driver is done with it
+        // (after rating / dismissing the completion card).
         setActiveTrips(prev => prev.filter(t => t.tripId !== trip.tripId));
     };
 
@@ -345,5 +354,6 @@ export function useDriverDashboard() {
         handleDestinationPress,
         startTrip,
         completeTrip,
+        dismissCompletedTrip,
     };
 }

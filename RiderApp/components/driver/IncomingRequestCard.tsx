@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, shadow, spacing } from '@/constants/ui';
 
 interface IncomingRequestCardProps {
@@ -13,6 +14,17 @@ export const IncomingRequestCard = ({ onAccept, onReject, incomingRequest }: Inc
         <View style={styles.incomingRequestCard}>
             <Text style={styles.incomingRequestTitle}>New Ride Request!</Text>
             <Text style={styles.incomingRequestDesc}>A passenger is on your route.</Text>
+
+            {incomingRequest?.passengerRating != null && (
+                <View style={styles.passengerRatingRow}>
+                    <MaterialIcons name="person" size={16} color={colors.textSecondary} />
+                    <Text style={styles.passengerRatingLabel}>Passenger Rating</Text>
+                    <MaterialIcons name="star" size={16} color="#F59E0B" />
+                    <Text style={styles.passengerRatingValue}>
+                        {Number(incomingRequest.passengerRating).toFixed(1)}
+                    </Text>
+                </View>
+            )}
 
             {incomingRequest?.routeMatchPercentage !== undefined && (
                 <View style={styles.matchContainer}>
@@ -148,6 +160,30 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontWeight: '700',
         fontSize: 16,
+    },
+    passengerRatingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+        backgroundColor: colors.warningSoft,
+        borderColor: '#FDE68A',
+        borderWidth: 1,
+        borderRadius: radius.md,
+        paddingVertical: 6,
+        paddingHorizontal: spacing.md,
+        marginBottom: spacing.md,
+        alignSelf: 'center',
+    },
+    passengerRatingLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.textSecondary,
+    },
+    passengerRatingValue: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#D97706',
     },
     matchContainer: {
         alignItems: 'center',

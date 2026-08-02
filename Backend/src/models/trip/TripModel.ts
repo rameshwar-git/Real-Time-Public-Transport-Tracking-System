@@ -8,6 +8,7 @@ export interface ExtendedTrip extends Trip {
     estimatedDuration?: number;
     estimatedDistance?: number;
     fare?: number;
+    driverRating?: number; // Passenger's rating of the driver
 }
 
 const TripSchema = new Schema<ExtendedTrip>({
@@ -28,6 +29,7 @@ const TripSchema = new Schema<ExtendedTrip>({
     endDate: { type: Date },
     status: { type: String, enum: ['scheduled', 'in_progress', 'completed', 'canceled'], default: 'scheduled' },
     rating: { type: Number, min: 1, max: 5 },
+    driverRating: { type: Number, min: 1, max: 5 },
     estimatedDuration: { type: Number },
     estimatedDistance: { type: Number },
     fare: { type: Number }

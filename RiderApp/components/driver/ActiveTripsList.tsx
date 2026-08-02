@@ -20,25 +20,61 @@ export const ActiveTripsList = ({ activeTrips, onStartTrip, onCancelTrip, onComp
         setIsExpanded(!isExpanded);
     };
 
-    // Determine trips to show based on expanded state
-    let displayedTrips = activeTrips;
-    if (!isExpanded) {
-        // Find nearest scheduled trip (to pickup)
-        const scheduledTrips = activeTrips.filter(t => t.status === 'scheduled')
-            .sort((a, b) => (a.estimatedDistance || Number.MAX_VALUE) - (b.estimatedDistance || Number.MAX_VALUE));
-        const nearestScheduled = scheduledTrips[0];
+    // Completed trips are handled by the popup review modal, so they are
+    // excluded from the inline list (the expand/collapse logic only shows
+    // scheduled / in-progress trips).
+    const completedTrips = activeTrips.filter(t => t.status === 'completed');
+    const activeTripsRunning = activeTrips.filter(t => t.status !== 'completed');
 
-        // Find nearest in_progress trip (to dropoff)
-        const inProgressTrips = activeTrips.filter(t => t.status === 'in_progress')
+    let displayedTrips: any[];
+    if (isExpanded) {
+        displayedTrips = activeTripsRunning;
+    } else {
+        const scheduledTrips = activeTripsRunning.filter(t => t.status === 'scheduled')
             .sort((a, b) => (a.estimatedDistance || Number.MAX_VALUE) - (b.estimatedDistance || Number.MAX_VALUE));
-        const nearestInProgress = inProgressTrips[0];
-
-        displayedTrips = [nearestScheduled, nearestInProgress].filter(Boolean);
-        // Fallback if somehow both are null but activeTrips isn't empty
-        if (displayedTrips.length === 0) {
-            displayedTrips = [activeTrips[0]];
-        }
+        const inProgressTrips = activeTripsRunning.filter(t => t.status === 'in_progress')
+            .sort((a, b) => (a.estimatedDistance || Number.MAX_VALUE) - (b.estimatedDistance || Number.MAX_VALUE));
+        const activeShown = [scheduledTrips[0], inProgressTrips[0]].filter(Boolean);
+        displayedTrips = activeShown;
     }
+
+    const renderActiveTrip = (trip: any, idx: number) => (
+        <View key={trip.tripId || idx} style={styles.tripCard}>
+            <View style={{ flex: 1 }}>
+                <Text style={styles.tripPassenger}>{trip.passengerName}</Text>
+                <Text style={styles.tripStatus}>
+                    {trip.status === 'scheduled' ? 'Awaiting Pickup' : 'In Progress'}
+                    {trip.estimatedDistance !== undefined && trip.estimatedDuration !== undefined && (
+                        ` • ${trip.estimatedDistance.toFixed(1)} km (${trip.estimatedDuration} min)`
+                    )}
+                    {trip.fare !== undefined && (
+                        ` • ₹${Number(trip.fare).toFixed(2)}`
+                    )}
+                </Text>
+            </View>
+            <View style={styles.tripActions}>
+                {trip.status === 'scheduled' && (
+                    <TouchableOpacity style={styles.otpBtn} onPress={() => onStartTrip(trip)}>
+                        <Text style={styles.btnTextSmall}>Start Trip</Text>
+                    </TouchableOpacity>
+                )}
+                {trip.status === 'scheduled' && (
+                    <TouchableOpacity style={[styles.otpBtn, { backgroundColor: colors.danger, marginLeft: 8 }]} onPress={() => onCancelTrip(trip)}>
+                        <Text style={styles.btnTextSmall}>Cancel</Text>
+                    </TouchableOpacity>
+                )}
+                {trip.status === 'in_progress' && (
+                    <TouchableOpacity style={[styles.otpBtn, { backgroundColor: colors.primary }]} onPress={() => onCompleteTrip(trip)}>
+                        <Text style={styles.btnTextSmall}>✅ Complete Ride</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+        </View>
+    );
+
+    const tripCountLabel = completedTrips.length > 0
+        ? `Trips (${activeTrips.length})`
+        : `Current Trips (${activeTrips.length})`;
 
     return (
         <View style={styles.container}>
@@ -47,9 +83,7 @@ export const ActiveTripsList = ({ activeTrips, onStartTrip, onCancelTrip, onComp
                 onPress={toggleExpanded}
                 activeOpacity={0.7}
             >
-                <Text style={styles.tripsHeader}>
-                    Current Trips ({activeTrips.length})
-                </Text>
+                <Text style={styles.tripsHeader}>{tripCountLabel}</Text>
                 <MaterialIcons
                     name={isExpanded ? "expand-more" : "expand-less"}
                     size={24}
@@ -58,39 +92,7 @@ export const ActiveTripsList = ({ activeTrips, onStartTrip, onCancelTrip, onComp
             </TouchableOpacity>
 
             <ScrollView style={[styles.activeTripsContainer, isExpanded && { maxHeight: 250 }]}>
-                {displayedTrips.map((trip, idx) => (
-                    <View key={trip.tripId || idx} style={styles.tripCard}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.tripPassenger}>{trip.passengerName}</Text>
-                            <Text style={styles.tripStatus}>
-                                {trip.status === 'scheduled' ? 'Awaiting Pickup' : 'In Progress'}
-                                {trip.estimatedDistance !== undefined && trip.estimatedDuration !== undefined && (
-                                    ` • ${trip.estimatedDistance.toFixed(1)} km (${trip.estimatedDuration} min)`
-                                )}
-                                {trip.fare !== undefined && (
-                                    ` • ₹${Number(trip.fare).toFixed(2)}`
-                                )}
-                            </Text>
-                        </View>
-                        <View style={styles.tripActions}>
-                            {trip.status === 'scheduled' && (
-                                <TouchableOpacity style={styles.otpBtn} onPress={() => onStartTrip(trip)}>
-                                    <Text style={styles.btnTextSmall}>Start Trip</Text>
-                                </TouchableOpacity>
-                            )}
-                            {trip.status === 'scheduled' && (
-                                <TouchableOpacity style={[styles.otpBtn, { backgroundColor: '#EF4444', marginLeft: 8 }]} onPress={() => onCancelTrip(trip)}>
-                                    <Text style={styles.btnTextSmall}>Cancel</Text>
-                                </TouchableOpacity>
-                            )}
-                            {trip.status === 'in_progress' && (
-                                <TouchableOpacity style={[styles.otpBtn, { backgroundColor: '#10B981' }]} onPress={() => onCompleteTrip(trip)}>
-                                    <Text style={styles.btnTextSmall}>✅ Complete Ride</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    </View>
-                ))}
+                {displayedTrips.map((trip, idx) => renderActiveTrip(trip, idx))}
             </ScrollView>
         </View>
     );
@@ -152,5 +154,5 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontWeight: '700',
         fontSize: 12
-    }
+    },
 });

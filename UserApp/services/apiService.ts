@@ -109,6 +109,15 @@ export const deleteSavedPlace = async (placeId: string) => {
     return await res.json();
 };
 
+export const rateDriver = async (tripId: string, rating: number) => {
+    const res = await authFetch(`/trips/rate-driver/${tripId}`, {
+        method: "PUT",
+        body: JSON.stringify({ rating }),
+    });
+    if (!res.ok) throw new Error("Failed to submit rating");
+    return await res.json();
+};
+
 export const findDrivers = async (origin: any, destination: any, token?: string | null) => {
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
