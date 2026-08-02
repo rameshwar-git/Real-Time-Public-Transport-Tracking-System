@@ -80,3 +80,15 @@ export const getActiveDriverTrips = async () => {
     if (!res.ok) throw new Error("Failed to fetch active trips");
     return await res.json();
 };
+
+export const getDriverRideHistory = async () => {
+    const res = await authFetch("/drivers/ride-history");
+    if (!res.ok) throw new Error("Failed to fetch ride history");
+    return await res.json();
+};
+
+export const getDriverReports = async () => {
+    const res = await authFetch("/drivers/reports");
+    if (!res.ok) throw new Error("Failed to fetch driver reports");
+    return await res.json();
+};

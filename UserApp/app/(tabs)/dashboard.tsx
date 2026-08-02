@@ -316,7 +316,7 @@ export default function UserDashboard() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/saved-places')}>
             <View style={styles.actionIconContainer}>
               <MaterialCommunityIcons
                 name="map-outline"
@@ -335,7 +335,7 @@ export default function UserDashboard() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/help-support')}>
             <View style={styles.actionIconContainer}>
               <MaterialCommunityIcons
                 name="help-circle-outline"

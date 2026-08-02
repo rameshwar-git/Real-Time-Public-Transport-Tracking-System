@@ -43,7 +43,7 @@ export const emitLocationUpdate = (latitude: number, longitude: number) => {
 
   const payload = {
     type: "location-update",
-    userId: socket.auth?.userId, // Assuming userId is available via auth object
+    userId: (socket.auth as { userId?: string } | undefined)?.userId, // Set in connectSocket via socket.auth
     latitude,
     longitude,
     timestamp: Date.now(),

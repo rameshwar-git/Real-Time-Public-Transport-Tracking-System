@@ -86,6 +86,29 @@ export const updatePassengerProfile = async (data: any) => {
     return await res.json();
 };
 
+export const getSavedPlaces = async () => {
+    const res = await authFetch("/passengers/saved-places");
+    if (!res.ok) throw new Error("Failed to fetch saved places");
+    return await res.json();
+};
+
+export const addSavedPlace = async (data: any) => {
+    const res = await authFetch("/passengers/saved-places", {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to add saved place");
+    return await res.json();
+};
+
+export const deleteSavedPlace = async (placeId: string) => {
+    const res = await authFetch(`/passengers/saved-places/${placeId}`, {
+        method: "DELETE",
+    });
+    if (!res.ok) throw new Error("Failed to delete saved place");
+    return await res.json();
+};
+
 export const findDrivers = async (origin: any, destination: any, token?: string | null) => {
     const headers: Record<string, string> = {
         "Content-Type": "application/json",

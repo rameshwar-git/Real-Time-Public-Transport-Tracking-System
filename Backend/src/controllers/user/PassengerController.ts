@@ -1,4 +1,5 @@
 import PassengerModel from '@/models/users/UserPassengerModel';
+import SavedPlaceModel from '@/models/places/SavedPlaceModel';
 import { Request, Response } from 'express';
 import { TripModel } from '@/models/trip/TripModel';
 import DriverModel from '@/models/users/UserDriverModel';
@@ -357,6 +358,69 @@ export const getActiveTrip = async (req: AuthRequest, res: Response) => {
         fare: activeTrip.fare !== undefined ? activeTrip.fare : calculateFare(activeTrip.estimatedDistance || 0)
       }
     });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+//Get Saved Places for Passenger
+export const getSavedPlaces = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const places = await SavedPlaceModel.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json(places);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+//Add a Saved Place for Passenger
+export const addSavedPlace = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { label, latitude, longitude, address } = req.body;
+
+    if (!label || latitude == null || longitude == null || !address) {
+      return res.status(400).json({ error: 'Label, address, latitude and longitude are required' });
+    }
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      return res.status(400).json({ error: 'latitude and longitude must be numbers' });
+    }
+
+    const place = await SavedPlaceModel.create({
+      userId,
+      label,
+      address,
+      latitude,
+      longitude,
+    });
+
+    return res.status(201).json(place);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+//Delete a Saved Place for Passenger
+export const deleteSavedPlace = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { placeId } = req.params;
+
+    if (!placeId) {
+      return res.status(400).json({ error: 'Place ID is required' });
+    }
+
+    const place = await SavedPlaceModel.findOneAndDelete({ _id: placeId, userId });
+
+    if (!place) {
+      return res.status(404).json({ error: 'Saved place not found' });
+    }
+
+    return res.status(200).json({ message: 'Saved place deleted' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

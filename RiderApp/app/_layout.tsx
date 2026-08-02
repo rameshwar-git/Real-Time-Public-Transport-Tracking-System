@@ -6,6 +6,9 @@ export default function RootLayout() {
       <Stack.Screen name="auth/signin" />
       <Stack.Screen name="auth/signup" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="ride-history" />
+      <Stack.Screen name="ride-history/[id]" />
+      <Stack.Screen name="reports" />
     </Stack>
   );
 }

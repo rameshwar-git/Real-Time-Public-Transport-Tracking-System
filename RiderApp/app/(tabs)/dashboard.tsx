@@ -227,7 +227,7 @@ export default function RiderDashboard() {
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/reports')}>
             <View style={styles.actionIconContainer}>
               <MaterialCommunityIcons
                 name="file-document-outline"
@@ -246,7 +246,7 @@ export default function RiderDashboard() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/ride-history')}>
             <View style={styles.actionIconContainer}>
               <MaterialCommunityIcons
                 name="history"
