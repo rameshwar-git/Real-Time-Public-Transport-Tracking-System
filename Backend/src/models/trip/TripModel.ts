@@ -8,6 +8,8 @@ export interface ExtendedTrip extends Trip {
     estimatedDuration?: number;
     estimatedDistance?: number;
     fare?: number;
+    driverRating?: number; // Passenger's rating of the driver
+    seatsRequested?: number; // Seats booked by this passenger in a shared/public-transport vehicle
 }
 
 const TripSchema = new Schema<ExtendedTrip>({
@@ -18,19 +20,23 @@ const TripSchema = new Schema<ExtendedTrip>({
     otp: { type: String },
     startLocation: {
         latitude: { type: Number, required: true },
-        longitude: { type: Number, required: true }
+        longitude: { type: Number, required: true },
+        description: { type: String }
     },
     destination: {
         latitude: { type: Number, required: true },
-        longitude: { type: Number, required: true }
+        longitude: { type: Number, required: true },
+        description: { type: String }
     },
     startDate: { type: Date, default: Date.now },
     endDate: { type: Date },
     status: { type: String, enum: ['scheduled', 'in_progress', 'completed', 'canceled'], default: 'scheduled' },
     rating: { type: Number, min: 1, max: 5 },
+    driverRating: { type: Number, min: 1, max: 5 },
     estimatedDuration: { type: Number },
     estimatedDistance: { type: Number },
-    fare: { type: Number }
+    fare: { type: Number },
+    seatsRequested: { type: Number, default: 1 }
 });
 
 export const TripModel = model<ExtendedTrip>('Trip', TripSchema);

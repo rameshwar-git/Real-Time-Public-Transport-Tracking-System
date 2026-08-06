@@ -1,11 +1,12 @@
 import PassengerModel from '@/models/users/UserPassengerModel';
+import SavedPlaceModel from '@/models/places/SavedPlaceModel';
 import { Request, Response } from 'express';
 import { TripModel } from '@/models/trip/TripModel';
 import DriverModel from '@/models/users/UserDriverModel';
 import VehicleModel from '@/models/vehicles/VehicleModel';
 import DriverLocationModel from '@/models/location/DriverLocation';
 import PassengerLocationModel from '@/models/location/PassengerLocation';
-import { calculateFare } from '@/utils/geometry';
+import { fareFor } from '@/utils/geometry';
 import { createPassengerLocation } from '@controllers/location/LocationController';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -159,8 +160,8 @@ export const getUpcomingRides = async (req: AuthRequest, res: Response) => {
 
       return {
         id: trip._id,
-        from: 'Start Location',
-        to: 'Destination',
+        from: trip.startLocation?.description || 'Start Location',
+        to: trip.destination?.description || 'Destination',
         date: isToday ? 'Today' : dayName,
         time: startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         driver: (trip.driverId as any)?.name || 'Driver',
@@ -194,11 +195,11 @@ export const getRecentRides = async (req: AuthRequest, res: Response) => {
 
     const rides = completedTrips.map(trip => {
       const endDate = trip.endDate ? new Date(trip.endDate) : new Date();
-      const calculatedFare = trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0);
+      const calculatedFare = fareFor(trip);
       return {
         id: trip._id,
-        from: 'Start Location',
-        to: 'Destination',
+        from: trip.startLocation?.description || 'Start Location',
+        to: trip.destination?.description || 'Destination',
         date: endDate.toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'short',
@@ -207,7 +208,8 @@ export const getRecentRides = async (req: AuthRequest, res: Response) => {
           minute: '2-digit'
         }),
         fare: `₹${calculatedFare.toFixed(2)}`,
-        rating: trip.rating || 5
+        // Report the actual received rating (0 = not yet reviewed) instead of fabricating a 5.
+        rating: trip.rating ?? 0
       };
     });
 
@@ -233,7 +235,7 @@ export const getPassengerStats = async (req: AuthRequest, res: Response) => {
       ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length)
       : 0;
 
-    const totalSpent = completedTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
+    const totalSpent = completedTrips.reduce((sum, trip) => sum + fareFor(trip), 0);
 
     return res.status(200).json({
       totalRides,
@@ -354,9 +356,72 @@ export const getActiveTrip = async (req: AuthRequest, res: Response) => {
         vehicleType: vehicle?.vehicleType,
         estimatedDistance: activeTrip.estimatedDistance,
         estimatedDuration: activeTrip.estimatedDuration,
-        fare: activeTrip.fare !== undefined ? activeTrip.fare : calculateFare(activeTrip.estimatedDistance || 0)
+        fare: fareFor(activeTrip)
       }
     });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+//Get Saved Places for Passenger
+export const getSavedPlaces = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const places = await SavedPlaceModel.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json(places);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+//Add a Saved Place for Passenger
+export const addSavedPlace = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { label, latitude, longitude, address } = req.body;
+
+    if (!label || latitude == null || longitude == null || !address) {
+      return res.status(400).json({ error: 'Label, address, latitude and longitude are required' });
+    }
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      return res.status(400).json({ error: 'latitude and longitude must be numbers' });
+    }
+
+    const place = await SavedPlaceModel.create({
+      userId,
+      label,
+      address,
+      latitude,
+      longitude,
+    });
+
+    return res.status(201).json(place);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+//Delete a Saved Place for Passenger
+export const deleteSavedPlace = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { placeId } = req.params;
+
+    if (!placeId) {
+      return res.status(400).json({ error: 'Place ID is required' });
+    }
+
+    const place = await SavedPlaceModel.findOneAndDelete({ _id: placeId, userId });
+
+    if (!place) {
+      return res.status(404).json({ error: 'Saved place not found' });
+    }
+
+    return res.status(200).json({ message: 'Saved place deleted' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

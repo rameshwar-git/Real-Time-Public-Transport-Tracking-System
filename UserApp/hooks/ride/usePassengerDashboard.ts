@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Platform, Alert } from "react-native";
 import { useLiveLocations } from "@/hooks/location/useLiveLocations";
 import { useLocationSharing } from "@/hooks/location/useLocationSharing";
-import { getUserId } from "@/services/storageService";
+import { getUserId, getToken } from "@/services/storageService";
 import { requestPermission, reverseGeocode, getCurrentLocation } from "@/services/locationServices";
 import { socket } from "@/services/socket";
 import { getDistance } from "@/utils/geometry";
-import { getActiveTrip } from "@/services/apiService";
+import { getActiveTrip, findDrivers } from "@/services/apiService";
 import { useRideSocketEvents } from "@/hooks/ride/useRideSocketEvents";
 import { useRideRequestFlow } from "@/hooks/ride/useRideRequestFlow";
+import { upsertDriverLocation } from "@/utils/location";
 
 export function usePassengerDashboard() {
     const [userId, setUserId] = useState<string | null>(null);
@@ -21,7 +22,7 @@ export function usePassengerDashboard() {
     const [destination, setDestination] = useState<any>(null);
     const [destinationText, setDestinationText] = useState<string>("");
     const [origin, setOrigin] = useState<any>(null);
-    const [originText, setOriginText] = useState<string>("");
+    const [, setOriginText] = useState<string>("");
     const [isConfirmed, setIsConfirmed] = useState<boolean>(false);
     const [isSearching, setIsSearching] = useState<boolean>(false);
 
@@ -37,6 +38,15 @@ export function usePassengerDashboard() {
     const [matchedDrivers, setMatchedDrivers] = useState<any[]>([]);
     const [currentDriverIndex, setCurrentDriverIndex] = useState<number>(0);
     const [selectedVehicleType, setSelectedVehicleType] = useState<'all' | 'tricycle' | 'bus'>('all');
+
+    // Number of seats this passenger wants (shared/public-transport booking).
+    const [seatsNeeded, setSeatsNeeded] = useState<number>(1);
+    // Live available-seat count for the accepted driver, streamed over the socket.
+    const [availableSeats, setAvailableSeats] = useState<number | null>(null);
+
+    // Shared vehicles heading this passenger's way, loaded once a destination is set so
+    // they can be browsed (with live seats) BEFORE the search begins, and board via tap.
+    const [browseDrivers, setBrowseDrivers] = useState<any[]>([]);
 
     const pendingDriversRef = useRef<any[]>([]);
     const currentDriverIndexRef = useRef<number>(0);
@@ -103,17 +113,7 @@ export function usePassengerDashboard() {
 
                     // Immediately seed driver location so the route renders without waiting for socket
                     if (data.driverCurrentLocation) {
-                        setLocations((prev: any[]) => {
-                            const exists = prev.some((l: any) => l.userId === data.driverId);
-                            if (exists) {
-                                return prev.map((l: any) =>
-                                    l.userId === data.driverId
-                                        ? { ...l, currentLocation: data.driverCurrentLocation, vehicleId: l.vehicleId || { vehicleType: data.driverDetails?.vehicleType } }
-                                        : l
-                                );
-                            }
-                            return [...prev, { userId: data.driverId, currentLocation: data.driverCurrentLocation, vehicleId: { vehicleType: data.driverDetails?.vehicleType } }];
-                        });
+                        setLocations(prev => upsertDriverLocation(prev, data.driverId, data.driverCurrentLocation, data.driverDetails?.vehicleType));
                     }
 
                     // Fit map to show driver ↔ destination (or driver ↔ pickup) route
@@ -185,7 +185,37 @@ export function usePassengerDashboard() {
         fetchAddress();
     }, [origin]);
 
-    const { requestNextDriver, handleConfirmRide } = useRideRequestFlow({
+    // Pre-ride browse: while a destination is set (but nothing confirmed yet), load the
+    // shared vehicles going that way and keep their live seats fresh by re-polling.
+    useEffect(() => {
+        if (!origin || !destination || isConfirmed) {
+            setBrowseDrivers([]);
+            pendingDriversRef.current = [];
+            return;
+        }
+        let cancelled = false;
+        const load = async () => {
+            try {
+                const token = await getToken();
+                let drivers: any[] = await findDrivers(origin, destination, token as string);
+                if (selectedVehicleType !== 'all') {
+                    drivers = (drivers || []).filter(
+                        d => d.vehicleDetails?.vehicleType === selectedVehicleType
+                    );
+                }
+                if (cancelled) return;
+                setBrowseDrivers(drivers || []);
+                pendingDriversRef.current = drivers || [];
+            } catch (e) {
+                console.error("Browse load error:", e);
+            }
+        };
+        load();
+        const browseInterval = setInterval(load, 10000);
+        return () => { cancelled = true; clearInterval(browseInterval); };
+    }, [origin, destination, isConfirmed, selectedVehicleType, getToken]);
+
+    const { requestNextDriver, requestSpecificDriver, requestDriverAt, handleConfirmRide } = useRideRequestFlow({
         socket,
         userId,
         origin,
@@ -200,13 +230,12 @@ export function usePassengerDashboard() {
         setCurrentDriverIndex,
         selectedVehicleType,
         routeDetails,
+        seatsNeeded,
     });
 
     useRideSocketEvents({
         socket,
         userId,
-        origin,
-        destination,
         searchTimeoutRef,
         currentDriverIndexRef,
         requestNextDriver,
@@ -223,9 +252,24 @@ export function usePassengerDashboard() {
         stopSharing,
         assignedDriverId,
         setLocations,
+        setAvailableSeats,
     });
 
     // --- Event Handlers ---
+
+    // Reset all ride/trip state back to defaults
+    const resetRideState = () => {
+        setAssignedDriverId(null);
+        setDriverDetails(null);
+        setTripId(null);
+        setOtp(null);
+        setTripStatus(null);
+        setIsConfirmed(false);
+        setDestination(null);
+        setDestinationText("");
+        setRouteDetails(null);
+        setAvailableSeats(null);
+    };
 
     const handleCancelSearch = () => {
         const currentDriver = pendingDriversRef.current[currentDriverIndexRef.current];
@@ -241,15 +285,7 @@ export function usePassengerDashboard() {
     };
 
     const handleDismissReceipt = () => {
-        setAssignedDriverId(null);
-        setDriverDetails(null);
-        setTripId(null);
-        setOtp(null);
-        setTripStatus(null);
-        setIsConfirmed(false);
-        setDestination(null);
-        setDestinationText("");
-        setRouteDetails(null);
+        resetRideState();
     };
 
     const handleCancelTrip = () => {
@@ -275,16 +311,8 @@ export function usePassengerDashboard() {
 
                         // Optimistic immediate UI reset so the user isn't stuck
                         // if the server's "trip-canceled" echo is delayed or lost
-                        setAssignedDriverId(null);
-                        setDriverDetails(null);
-                        setTripId(null);
-                        setOtp(null);
-                        setTripStatus(null);
-                        setIsConfirmed(false);
+                        resetRideState();
                         setIsSearching(false);
-                        setDestination(null);
-                        setDestinationText("");
-                        setRouteDetails(null);
                         stopSharing();
                         if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
                     }
@@ -319,14 +347,19 @@ export function usePassengerDashboard() {
         setRouteDetails(null);
     };
 
-    const handleChooseOnMap = async () => {
-        setIsChoosingOnMap(true);
-        const centerCoords = { latitude: mapRegion.latitude, longitude: mapRegion.longitude };
-        setPinCoords(centerCoords);
-        const address = await reverseGeocode(mapRegion.latitude, mapRegion.longitude);
+    // Update the map-pin coordinates and reverse-geocode the given lat/lng so the
+    // pin card can show the address under the crosshair.
+    const updatePinFromCoords = async (latitude: number, longitude: number) => {
+        setPinCoords({ latitude, longitude });
+        const address = await reverseGeocode(latitude, longitude);
         if (address) {
             setPinAddress(address);
         }
+    };
+
+    const handleChooseOnMap = async () => {
+        setIsChoosingOnMap(true);
+        await updatePinFromCoords(mapRegion.latitude, mapRegion.longitude);
     };
 
     const handleConfirmPinLocation = () => {
@@ -343,12 +376,7 @@ export function usePassengerDashboard() {
     const handleRegionChangeComplete = async (region: any) => {
         setMapRegion(region);
         if (isChoosingOnMap) {
-            const centerCoords = { latitude: region.latitude, longitude: region.longitude };
-            setPinCoords(centerCoords);
-            const address = await reverseGeocode(region.latitude, region.longitude);
-            if (address) {
-                setPinAddress(address);
-            }
+            await updatePinFromCoords(region.latitude, region.longitude);
         }
     };
 
@@ -382,6 +410,9 @@ export function usePassengerDashboard() {
         matchedDrivers,
         currentDriverIndex,
         selectedVehicleType,
+        seatsNeeded,
+        availableSeats,
+        browseDrivers,
         locations,
         assignedDriverId,
         mapComponents,
@@ -392,6 +423,7 @@ export function usePassengerDashboard() {
         setSelectedVehicleType,
         setIsChoosingOnMap,
         setRouteDetails,
+        setSeatsNeeded,
 
         // Derived
         assignedDriverLocation,
@@ -399,6 +431,8 @@ export function usePassengerDashboard() {
 
         // Handlers
         handleConfirmRide,
+        requestSpecificDriver,
+        requestDriverAt,
         handleCancelSearch,
         handleCancelTrip,
         handleDismissReceipt,

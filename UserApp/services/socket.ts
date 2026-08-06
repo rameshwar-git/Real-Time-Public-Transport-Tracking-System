@@ -36,18 +36,3 @@ export const disconnectSocket = async () => {
 
   socket.disconnect();
 };
-
-// Emit user location updates to the server
-export const emitLocationUpdate = (latitude: number, longitude: number) => {
-  if (!socket.connected) return;
-
-  const payload = {
-    type: "location-update",
-    userId: socket.auth?.userId, // Assuming userId is available via auth object
-    latitude,
-    longitude,
-    timestamp: Date.now(),
-  };
-  socket.emit("user-location-update", payload);
-  console.log("Emitted location update:", { latitude, longitude });
-};

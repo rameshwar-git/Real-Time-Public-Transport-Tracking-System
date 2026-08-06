@@ -7,6 +7,3 @@ export const saveToken = (token: string) =>
 
 export const getToken = () =>
   SecureStore.getItemAsync(KEY);
-
-export const deleteToken = () =>
-  SecureStore.deleteItemAsync(KEY);

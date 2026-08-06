@@ -25,12 +25,15 @@ export default function App() {
         isChoosingOnMap,
         pinAddress,
         driverDetails,
-        otp,
         tripStatus,
+        tripId,
         routeDetails,
         matchedDrivers,
         currentDriverIndex,
         selectedVehicleType,
+        seatsNeeded,
+        availableSeats,
+        browseDrivers,
         locations,
         assignedDriverId,
         mapComponents,
@@ -40,9 +43,12 @@ export default function App() {
         setSelectedVehicleType,
         setIsChoosingOnMap,
         setRouteDetails,
+        setSeatsNeeded,
         assignedDriverLocation,
         computedDistance,
         handleConfirmRide,
+        requestSpecificDriver,
+        requestDriverAt,
         handleCancelSearch,
         handleCancelTrip,
         handleDismissReceipt,
@@ -117,6 +123,11 @@ export default function App() {
                             selectedVehicleType={selectedVehicleType}
                             setSelectedVehicleType={setSelectedVehicleType}
                             distance={computedDistance}
+                            drivers={matchedDrivers}
+                            browseDrivers={browseDrivers}
+                            onRequestDriver={requestDriverAt}
+                            seatsNeeded={seatsNeeded}
+                            setSeatsNeeded={setSeatsNeeded}
                         />
                     )}
 
@@ -125,6 +136,8 @@ export default function App() {
                             onCancel={handleCancelSearch}
                             drivers={matchedDrivers}
                             currentDriverIndex={currentDriverIndex}
+                            onSelectDriver={requestSpecificDriver}
+                            seatsNeeded={seatsNeeded}
                         />
                     )}
 
@@ -137,6 +150,7 @@ export default function App() {
                             origin={origin}
                             destination={destination}
                             routeDetails={routeDetails}
+                            availableSeats={availableSeats}
                         />
                     )}
 
@@ -146,6 +160,7 @@ export default function App() {
                             origin={origin}
                             destination={destination}
                             onDismiss={handleDismissReceipt}
+                            tripId={tripId}
                         />
                     )}
                 </View>

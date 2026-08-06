@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { TripModel } from '@models/trip/TripModel';
+import { AuthRequest } from '@/middleware/verifyToken';
+import { driverAvgRating } from '@/utils/rating';
 
 // Create a new trip
 export const createTrip = async (req: Request, res: Response) => {
@@ -11,33 +13,25 @@ export const createTrip = async (req: Request, res: Response) => {
     }
 };
 
-// Update trip by passengerId
-export const putTripPassenger = async (req: Request, res: Response) => {
+// Update trip by a single user field (passengerId or driverId)
+const updateTripBy = async (field: 'passengerId' | 'driverId', req: Request, res: Response) => {
     try {
-        const { passengerId } = req.params;
-        if (!passengerId) {
+        const { [field]: id } = req.params;
+        if (!id) {
             return res.status(400).json({ error: 'TripId is required' });
         }
-        const trip = await TripModel.findOneAndUpdate({ passengerId }, { ...req.body });
+        await TripModel.findOneAndUpdate({ [field]: id }, { ...req.body });
         res.status(200).json({ Status: 'SUCCESS' });
     } catch (err: any) {
         res.status(500).json({ Status: 'FAILED' });
     }
 };
 
+// Update trip by passengerId
+export const putTripPassenger = (req: Request, res: Response) => updateTripBy('passengerId', req, res);
+
 // Update trip by driverId
-export const putTripDriver = async (req: Request, res: Response) => {
-    try {
-        const { driverId } = req.params;
-        if (!driverId) {
-            return res.status(400).json({ error: 'TripId is required' });
-        }
-        const trip = await TripModel.findOneAndUpdate({ driverId }, { ...req.body });
-        res.status(200).json({ Status: 'SUCCESS' });
-    } catch (err: any) {
-        res.status(500).json({ Status: 'FAILED' });
-    }
-};
+export const putTripDriver = (req: Request, res: Response) => updateTripBy('driverId', req, res);
 
 import DriverLocationModel from '@/models/location/DriverLocation';
 import VehicleModel from '@/models/vehicles/VehicleModel';
@@ -84,11 +78,15 @@ export const findDrivers = async (req: Request, res: Response) => {
                 const driverName = driverInfo ? driverInfo.name : 'Unknown Driver';
                 const driverPhone = driverInfo ? driverInfo.phone : '';
 
+                // Driver's average rating from passenger ratings (higher-rated drivers get priority)
+                const rating = await driverAvgRating(driver.userId as any);
+
                 validDrivers.push({
                     ...driver,
                     pickupDist: match.pickupDist,
                     routeMatchPercentage: match.percentage,
                     availableSeats: seats,
+                    rating,
                     driverDetails: {
                         name: driverName,
                         phone: driverPhone
@@ -105,8 +103,14 @@ export const findDrivers = async (req: Request, res: Response) => {
 
         console.log(`[findDrivers] Result: ${validDrivers.length} valid drivers`);
 
-        // Sort by RouteMatch percentage (descending) first, then by pickup distance (ascending)
+        // Sort by rating (descending) first so higher-rated drivers get the request
+        // first, then by RouteMatch percentage (descending), then pickup distance.
         validDrivers.sort((a, b) => {
+            const ra = a.rating ?? 0;
+            const rb = b.rating ?? 0;
+            if (rb !== ra) {
+                return rb - ra;
+            }
             if (b.routeMatchPercentage !== a.routeMatchPercentage) {
                 return b.routeMatchPercentage - a.routeMatchPercentage;
             }
@@ -120,5 +124,81 @@ export const findDrivers = async (req: Request, res: Response) => {
         res.status(200).json(top10Drivers);
     } catch (err: any) {
         res.status(500).json({ error: err.message });
+    }
+};
+
+// Passenger rates a driver (sets driverRating on the trip)
+export const rateDriver = async (req: AuthRequest, res: Response) => {
+    try {
+        const passengerId = req.user!.id;
+        const { tripId } = req.params;
+        const rating = Number(req.body?.rating);
+
+        if (!tripId) {
+            return res.status(400).json({ error: 'Trip ID is required' });
+        }
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+            return res.status(400).json({ error: 'Rating must be an integer between 1 and 5' });
+        }
+
+        // Atomically set the rating ONLY if it hasn't been set yet — this enforces
+        // one review per trip per direction (a passenger can't keep re-rating the same
+        // driver and skewing the average), and is safe against concurrent duplicate submits.
+        const trip = await TripModel.findOneAndUpdate(
+            { _id: tripId, passengerId, driverRating: { $exists: false } },
+            { $set: { driverRating: rating } },
+            { new: true }
+        );
+
+        if (trip) {
+            return res.status(200).json({ Status: 'SUCCESS', driverRating: trip.driverRating });
+        }
+
+        // Already reviewed (or trip lookup raced) — return the existing value as a clean
+        // success so a retry never surfaces as an error and the average is never skewed.
+        const existing = await TripModel.findOne({ _id: tripId, passengerId }).select('driverRating');
+        if (!existing) {
+            return res.status(404).json({ error: 'Trip not found for this passenger' });
+        }
+        return res.status(200).json({ Status: 'SUCCESS', driverRating: existing.driverRating, alreadyRated: true });
+    } catch (err: any) {
+        return res.status(500).json({ Status: 'FAILED', error: err.message });
+    }
+};
+
+// Driver rates a passenger (sets rating on the trip)
+export const ratePassenger = async (req: AuthRequest, res: Response) => {
+    try {
+        const driverId = req.user!.id;
+        const { tripId } = req.params;
+        const rating = Number(req.body?.rating);
+
+        if (!tripId) {
+            return res.status(400).json({ error: 'Trip ID is required' });
+        }
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+            return res.status(400).json({ error: 'Rating must be an integer between 1 and 5' });
+        }
+
+        // Atomically set the rating ONLY if it hasn't been set yet — one review per trip
+        // per direction, safe against concurrent duplicate submits.
+        const trip = await TripModel.findOneAndUpdate(
+            { _id: tripId, driverId, rating: { $exists: false } },
+            { $set: { rating } },
+            { new: true }
+        );
+
+        if (trip) {
+            return res.status(200).json({ Status: 'SUCCESS', rating: trip.rating });
+        }
+
+        // Already reviewed — return the existing value as a clean success.
+        const existing = await TripModel.findOne({ _id: tripId, driverId }).select('rating');
+        if (!existing) {
+            return res.status(404).json({ error: 'Trip not found for this driver' });
+        }
+        return res.status(200).json({ Status: 'SUCCESS', rating: existing.rating, alreadyRated: true });
+    } catch (err: any) {
+        return res.status(500).json({ Status: 'FAILED', error: err.message });
     }
 };

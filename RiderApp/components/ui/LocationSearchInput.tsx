@@ -1,6 +1,7 @@
-import React, {useEffect, useState} from "react";
+import React from "react";
 import {View, TextInput, StyleSheet, TouchableOpacity} from "react-native";
 import { MapPin, X } from "lucide-react-native";
+import { colors, radius, spacing } from "@/constants/ui";
 
 type Props = {
     placeholder?: string;
@@ -47,18 +48,18 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         width: "auto",
-        backgroundColor: "#0F172A",
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+        backgroundColor: colors.surface,
+        borderRadius: radius.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
         borderWidth: 1,
-        borderColor: "#334155",
+        borderColor: colors.border,
     },
     input: {
         flex: 1,
         fontSize: 15,
-        color: "#F1F5F9",
-        paddingHorizontal: 8,
+        color: colors.text,
+        paddingHorizontal: spacing.sm,
         height: 36,
     },
     leftIcon: {

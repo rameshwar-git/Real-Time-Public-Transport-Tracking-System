@@ -1,4 +1,12 @@
 import { connectedUsers, emitToUser } from '../connectionManager';
+import VehicleModel from '@/models/vehicles/VehicleModel';
+import DriverLocationModel from '@/models/location/DriverLocation';
+import PassengerModel from '@/models/users/UserPassengerModel';
+import DriverModel from '@/models/users/UserDriverModel';
+import { TripModel } from '@/models/trip/TripModel';
+import { calculateRouteMatch, calculateFare, applyVehicleFareModifier, estimateTripMetrics } from '@/utils/geometry';
+import { passengerAvgRating } from '@/utils/rating';
+import { takeSeat } from '../utils/seats';
 
 /**
  * Registers ride-related socket events:
@@ -7,35 +15,39 @@ import { connectedUsers, emitToUser } from '../connectionManager';
  *  - accept-ride
  *  - reject-ride
  */
-export function registerRideHandlers(io: any, socket: any, userId: string) {
+export function registerRideHandlers(io: any, socket: any, _userId: string) {
 
     socket.on("request-ride", async (data: any) => {
-        const { passengerId, driverId, origin, destination, passengerFare } = data;
+        const { passengerId, driverId, origin, destination, passengerFare, seats } = data;
         const driverSocketId = connectedUsers.get(driverId);
 
-        const VehicleModel = require('@/models/vehicles/VehicleModel').default;
         const vehicle = await VehicleModel.findOne({ driverId: driverId });
-        const currentSeats = vehicle ? (vehicle.availableSeats !== undefined ? vehicle.availableSeats : vehicle.capacity) : 0;
+        const currentSeats = vehicle ? (vehicle.availableSeats ?? vehicle.capacity) ?? 0 : 0;
 
+        // Optional requested seat count (default 1). Reject when the vehicle lacks enough seats —
+        // a passenger must not overbook a shared/public-transport vehicle.
+        const seatsRequested = (Number(seats) > 0) ? Math.floor(Number(seats)) : 1;
         if (currentSeats <= 0) {
-            emitToUser(io, passengerId, "ride-rejected", { driverId, reason: "Driver is full" });
+            emitToUser(io, passengerId, "ride-rejected", { driverId, reason: "Driver is full", availableSeats: 0 });
+            return;
+        }
+        if (currentSeats < seatsRequested) {
+            emitToUser(io, passengerId, "ride-rejected", {
+                driverId,
+                reason: "Not enough seats",
+                seatsRequested,
+                availableSeats: currentSeats
+            });
             return;
         }
 
         // Calculate estimated distance and duration
-        const { getDistance, calculateRouteMatch } = require('@/utils/geometry');
-        let estimatedDistance = 0;
-        let estimatedDuration = 0;
-        if (origin && destination) {
-            estimatedDistance = getDistance(origin.latitude, origin.longitude, destination.latitude, destination.longitude);
-            estimatedDuration = Math.max(1, Math.round(estimatedDistance * 2.4));
-        }
+        const { estimatedDistance, estimatedDuration } = estimateTripMetrics(origin, destination);
 
         // Calculate driver match percentage and fare
         let routeMatchPercentage = 0;
         let fare = 0;
         try {
-            const DriverLocationModel = require('@/models/location/DriverLocation').default;
             const driverLocation = await DriverLocationModel.findOne({ userId: driverId }).lean();
             if (driverLocation && driverLocation.currentLocation && driverLocation.destination && origin && destination) {
                 const match = calculateRouteMatch(
@@ -50,20 +62,18 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
             if (passengerFare !== undefined) {
                 fare = passengerFare;
             } else {
-                const { calculateFare, roundToNearestFive } = require('@/utils/geometry');
-                let baseFare = calculateFare(estimatedDistance);
-                fare = baseFare;
-                if (vehicle) {
-                    if (vehicle.vehicleType === 'tricycle') {
-                        fare = Number((baseFare * 0.8).toFixed(2));
-                    } else if (vehicle.vehicleType === 'bus') {
-                        fare = Number((baseFare * 1.5).toFixed(2));
-                    }
-                }
-                fare = roundToNearestFive(fare);
+                fare = applyVehicleFareModifier(calculateFare(estimatedDistance), vehicle?.vehicleType);
             }
         } catch (err) {
             console.error("Error calculating driver route match percentage or fare:", err);
+        }
+
+        // Passenger's average rating (drivers see this on the incoming request)
+        let passengerRating: number | null = null;
+        try {
+            passengerRating = await passengerAvgRating(passengerId);
+        } catch (err) {
+            console.error("Error loading passenger rating:", err);
         }
 
         if (driverSocketId) {
@@ -75,7 +85,9 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
                 estimatedDistance,
                 estimatedDuration,
                 routeMatchPercentage,
-                fare
+                fare,
+                passengerRating,
+                seats: seatsRequested
             });
         } else {
             console.log(`Driver ${driverId} not currently connected to sockets.`);
@@ -88,27 +100,35 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
     });
 
     socket.on("accept-ride", async (data: any) => {
-        let { passengerId, driverId, vehicleId, origin, destination, fare: driverPassedFare } = data;
+        let { passengerId, driverId, vehicleId, origin, destination, fare: driverPassedFare, seats } = data;
         const passengerSocketId = connectedUsers.get(passengerId);
         const driverSocketId = connectedUsers.get(driverId);
 
+        // Number of seats the passenger requested (echoed back by the driver on accept).
+        const seatsRequested = (Number(seats) > 0) ? Math.floor(Number(seats)) : 1;
+
         if (!vehicleId && driverId) {
-            const VehicleModel = require('@/models/vehicles/VehicleModel').default;
             const vehicle = await VehicleModel.findOne({ driverId: driverId }).select('_id');
             if (vehicle) vehicleId = vehicle._id;
         }
 
-        // Decrement available seats
+        // Re-validate seats at accept time and decrement by the requested count.
+        // Reject if another booking drained the available seats in the meantime.
+        let availableAfter: number | null = null;
         if (vehicleId) {
             try {
-                const VehicleModel = require('@/models/vehicles/VehicleModel').default;
                 const vehicle = await VehicleModel.findById(vehicleId);
-                if (vehicle) {
-                    const currentSeats = vehicle.availableSeats !== undefined ? vehicle.availableSeats : vehicle.capacity;
-                    if (currentSeats > 0) {
-                        await VehicleModel.findByIdAndUpdate(vehicleId, { availableSeats: currentSeats - 1 });
-                    }
+                const currentSeats = vehicle ? (vehicle.availableSeats ?? vehicle.capacity) ?? 0 : 0;
+                if (currentSeats < seatsRequested) {
+                    emitToUser(io, passengerId, "ride-rejected", {
+                        driverId,
+                        reason: "Not enough seats",
+                        seatsRequested,
+                        availableSeats: currentSeats
+                    });
+                    return;
                 }
+                availableAfter = await takeSeat(vehicleId, seatsRequested);
             } catch (error) {
                 console.error("Error decrementing seats", error);
             }
@@ -118,41 +138,23 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
         const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
         // Get passenger name
-        const PassengerModel = require('@/models/users/UserPassengerModel').default;
         const passenger = await PassengerModel.findById(passengerId);
         const passengerName = passenger?.name || "Passenger";
 
         // Get driver details
-        const DriverModel = require('@/models/users/UserDriverModel').default;
         const driver = await DriverModel.findById(driverId);
 
         // Get vehicle details
-        const VehicleModel = require('@/models/vehicles/VehicleModel').default;
         const vehicle = await VehicleModel.findOne({ driverId: driverId });
 
         // Calculate estimated distance, duration and fare
-        const { getDistance, calculateFare } = require('@/utils/geometry');
-        let estimatedDistance = 0;
-        let estimatedDuration = 0;
-        if (origin && destination) {
-            estimatedDistance = getDistance(origin.latitude, origin.longitude, destination.latitude, destination.longitude);
-            estimatedDuration = Math.max(1, Math.round(estimatedDistance * 2.4));
-        }
+        const { estimatedDistance, estimatedDuration } = estimateTripMetrics(origin, destination);
         let fare = driverPassedFare !== undefined ? driverPassedFare : calculateFare(estimatedDistance);
         if (driverPassedFare === undefined) {
-            if (vehicle) {
-                if (vehicle.vehicleType === 'tricycle') {
-                    fare = Number((fare * 0.8).toFixed(2));
-                } else if (vehicle.vehicleType === 'bus') {
-                    fare = Number((fare * 1.5).toFixed(2));
-                }
-            }
-            const { roundToNearestFive } = require('@/utils/geometry');
-            fare = roundToNearestFive(fare);
+            fare = applyVehicleFareModifier(fare, vehicle?.vehicleType);
         }
 
         // Create trip
-        const { TripModel } = require('@/models/trip/TripModel');
         const trip = await TripModel.create({
             passengerId,
             driverId,
@@ -164,7 +166,8 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
             estimatedDistance,
             estimatedDuration,
             fare,
-            status: 'scheduled'
+            status: 'scheduled',
+            seatsRequested
         });
 
         if (passengerSocketId) {
@@ -181,7 +184,9 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
                 otp,
                 estimatedDistance,
                 estimatedDuration,
-                fare
+                fare,
+                seatsRequested,
+                availableSeats: availableAfter
             });
         }
 
@@ -195,7 +200,17 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
                 estimatedDistance,
                 estimatedDuration,
                 fare,
-                status: 'scheduled'
+                status: 'scheduled',
+                seatsRequested
+            });
+        }
+
+        // Push the fresh seat count to the booking passenger immediately so the ride
+        // view reflects the drop in real time (also streamed on every driver-location-updated).
+        if (passengerSocketId && availableAfter != null) {
+            io.to(passengerSocketId).emit("seats-updated", {
+                driverId,
+                availableSeats: availableAfter
             });
         }
     });

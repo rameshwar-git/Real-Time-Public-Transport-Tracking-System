@@ -1,11 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { colors, radius, spacing } from '@/constants/ui';
 
 interface Driver {
     userId: string;
     pickupDist: number;
     routeMatchPercentage: number;
     availableSeats: number;
+    rating?: number | null;
     driverDetails?: {
         name: string;
         phone: string;
@@ -22,12 +25,18 @@ interface SearchingDriversBottomViewProps {
     onCancel: () => void;
     drivers?: Driver[];
     currentDriverIndex?: number;
+    /** Tap a specific vehicle (e.g. one with enough seats) to request it directly. */
+    onSelectDriver?: (index: number) => void;
+    /** How many seats this passenger wants, shown against each driver's availability. */
+    seatsNeeded?: number;
 }
 
-export const SearchingDriversBottomView = ({ 
-    onCancel, 
-    drivers = [], 
-    currentDriverIndex = 0 
+export const SearchingDriversBottomView = ({
+    onCancel,
+    drivers = [],
+    currentDriverIndex = 0,
+    onSelectDriver,
+    seatsNeeded = 1
 }: SearchingDriversBottomViewProps) => {
     const hasDrivers = Array.isArray(drivers) && drivers.length > 0;
 
@@ -56,8 +65,8 @@ export const SearchingDriversBottomView = ({
             )}
 
             {hasDrivers ? (
-                <ScrollView 
-                    style={styles.listContainer} 
+                <ScrollView
+                    style={styles.listContainer}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.listContent}
                 >
@@ -65,15 +74,23 @@ export const SearchingDriversBottomView = ({
                         const isCurrent = idx === currentDriverIndex;
                         const isPassed = idx < currentDriverIndex;
                         const matchStyle = getMatchColor(driver.routeMatchPercentage || 0);
+                        const available = driver.availableSeats != null ? Number(driver.availableSeats) : 4;
+                        // Enough seats to fulfil this passenger's request?
+                        const hasEnoughSeats = available >= seatsNeeded;
+                        const canSelect = !!onSelectDriver;
+                        const Card = canSelect ? TouchableOpacity : View;
 
                         return (
-                            <View 
-                                key={driver.userId || idx} 
+                            <Card
+                                key={driver.userId || idx}
                                 style={[
-                                    styles.driverCard, 
+                                    styles.driverCard,
                                     isCurrent && styles.activeCard,
-                                    isPassed && styles.passedCard
+                                    isPassed && styles.passedCard,
+                                    canSelect && !isPassed && styles.selectableCard
                                 ]}
+                                activeOpacity={0.8}
+                                onPress={canSelect && !isPassed ? () => onSelectDriver!(idx) : undefined}
                             >
                                 <View style={styles.leftCol}>
                                     <View style={[styles.avatarCircle, isCurrent && styles.activeAvatarCircle]}>
@@ -86,22 +103,29 @@ export const SearchingDriversBottomView = ({
                                             {driver.driverDetails?.name || `Driver #${(driver.userId || '').slice(-4)}`}
                                         </Text>
                                         <Text style={styles.vehicleInfo}>
-                                            {driver.vehicleDetails?.color || ''} {driver.vehicleDetails?.vehicleModel || 'Vehicle'} 
+                                            {driver.vehicleDetails?.color || ''} {driver.vehicleDetails?.vehicleModel || 'Vehicle'}
                                             {driver.vehicleDetails?.vehicleNumber ? ` • ${driver.vehicleDetails.vehicleNumber}` : ''}
                                         </Text>
-                                        <Text style={styles.seatsInfo}>
-                                            Seats: {driver.availableSeats || 4} available
+                                        <Text style={[styles.seatsInfo, { color: hasEnoughSeats ? '#059669' : colors.textMuted }]}>
+                                            {available} seat{available !== 1 ? 's' : ''} available
+                                            {!hasEnoughSeats && ` — not enough for ${seatsNeeded} requested`}
                                         </Text>
                                     </View>
                                 </View>
 
                                 <View style={styles.rightCol}>
+                                    {driver.rating ? (
+                                        <View style={styles.ratingRow}>
+                                            <MaterialIcons name="star" size={14} color="#F59E0B" />
+                                            <Text style={styles.ratingText}>{driver.rating.toFixed(1)}</Text>
+                                        </View>
+                                    ) : null}
                                     <View style={[styles.badge, { backgroundColor: matchStyle.bg }]}>
                                         <Text style={[styles.badgeText, { color: matchStyle.text }]}>
                                             {Math.round(driver.routeMatchPercentage || 0)}% Match
                                         </Text>
                                     </View>
-                                    
+
                                     <Text style={styles.distText}>
                                         {driver.pickupDist ? `${driver.pickupDist.toFixed(2)} km` : 'Nearby'}
                                     </Text>
@@ -121,8 +145,13 @@ export const SearchingDriversBottomView = ({
                                             <Text style={styles.statusTextQueue}>QUEUED</Text>
                                         </View>
                                     )}
+                                    {canSelect && !isCurrent && !isPassed && hasEnoughSeats && (
+                                        <View style={styles.pickBadge}>
+                                            <Text style={styles.pickText}>REQUEST THIS</Text>
+                                        </View>
+                                    )}
                                 </View>
-                            </View>
+                            </Card>
                         );
                     })}
                 </ScrollView>
@@ -145,56 +174,56 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: "#FFFFFF",
-        paddingHorizontal: 20,
-        paddingTop: 20,
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.xl,
+        paddingTop: spacing.xl,
         paddingBottom: 28,
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
+        borderTopLeftRadius: radius.xl,
+        borderTopRightRadius: radius.xl,
         elevation: 15,
-        shadowColor: '#0F172A',
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: -8 },
         shadowOpacity: 0.1,
         shadowRadius: 16,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: colors.border,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 8,
+        marginBottom: spacing.sm,
     },
     pulseContainer: {
         width: 12,
         height: 12,
         borderRadius: 6,
-        backgroundColor: '#EFF6FF',
+        backgroundColor: colors.primarySoft,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 8,
+        marginRight: spacing.sm,
     },
     pulseDot: {
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: '#3B82F6',
+        backgroundColor: colors.primary,
     },
     searchingText: {
         fontSize: 18,
         fontWeight: "700",
         textAlign: "center",
-        color: "#0F172A",
+        color: colors.text,
     },
     subtext: {
         fontSize: 13,
-        color: "#64748B",
+        color: colors.textSecondary,
         textAlign: "center",
-        marginBottom: 16,
+        marginBottom: spacing.lg,
     },
     listContainer: {
         maxHeight: Dimensions.get('window').height * 0.35,
-        marginBottom: 8,
+        marginBottom: spacing.sm,
     },
     listContent: {
         paddingVertical: 4,
@@ -203,22 +232,39 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#F8FAFC',
-        borderRadius: 16,
+        backgroundColor: colors.inputBg,
+        borderRadius: radius.md,
         padding: 14,
         marginBottom: 10,
         borderWidth: 1,
-        borderColor: '#F1F5F9',
+        borderColor: colors.border,
     },
     activeCard: {
-        backgroundColor: '#F5F3FF', // Sleek violet/purple gradient accent
-        borderColor: '#C7D2FE',
+        backgroundColor: colors.primarySoft,
+        borderColor: colors.primaryBorder,
         borderWidth: 1.5,
     },
     passedCard: {
         backgroundColor: '#FAFAFA',
         opacity: 0.6,
-        borderColor: '#E2E8F0',
+        borderColor: colors.border,
+    },
+    selectableCard: {
+        borderColor: colors.border,
+        borderWidth: 1.5,
+    },
+    pickBadge: {
+        marginTop: 6,
+        backgroundColor: colors.primary,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    pickText: {
+        color: '#FFFFFF',
+        fontSize: 9,
+        fontWeight: 'bold',
+        letterSpacing: 0.5,
     },
     leftCol: {
         flexDirection: 'row',
@@ -229,18 +275,18 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#E2E8F0',
+        backgroundColor: colors.borderStrong,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: spacing.md,
     },
     activeAvatarCircle: {
-        backgroundColor: '#818CF8',
+        backgroundColor: colors.primary,
     },
     avatarText: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#475569',
+        color: colors.textSecondary,
     },
     detailsCol: {
         flex: 1,
@@ -249,26 +295,37 @@ const styles = StyleSheet.create({
     driverName: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#1E293B',
+        color: colors.text,
         marginBottom: 2,
     },
     mutedText: {
-        color: '#64748B',
+        color: colors.textSecondary,
         textDecorationLine: 'line-through',
     },
     vehicleInfo: {
         fontSize: 12,
-        color: '#64748B',
+        color: colors.textSecondary,
         marginBottom: 2,
     },
     seatsInfo: {
         fontSize: 11,
-        color: '#94A3B8',
+        color: colors.textMuted,
     },
     rightCol: {
         alignItems: 'flex-end',
         justifyContent: 'center',
         marginLeft: 10,
+    },
+    ratingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    ratingText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#F59E0B',
+        marginLeft: 4,
     },
     badge: {
         paddingHorizontal: 8,
@@ -283,11 +340,11 @@ const styles = StyleSheet.create({
     distText: {
         fontSize: 12,
         fontWeight: '500',
-        color: '#334155',
+        color: colors.text,
         marginBottom: 6,
     },
     statusBadgeCurrent: {
-        backgroundColor: '#4F46E5',
+        backgroundColor: colors.primary,
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 4,
@@ -299,7 +356,7 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     statusBadgePassed: {
-        backgroundColor: '#94A3B8',
+        backgroundColor: colors.textMuted,
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 4,
@@ -311,13 +368,13 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     statusBadgeQueue: {
-        backgroundColor: '#E2E8F0',
+        backgroundColor: colors.border,
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 4,
     },
     statusTextQueue: {
-        color: '#475569',
+        color: colors.textSecondary,
         fontSize: 9,
         fontWeight: 'bold',
         letterSpacing: 0.5,
@@ -329,19 +386,19 @@ const styles = StyleSheet.create({
     },
     loadingSubtext: {
         fontSize: 13,
-        color: '#94A3B8',
+        color: colors.textMuted,
         textAlign: 'center',
     },
     btn: {
-        backgroundColor: "#000",
+        backgroundColor: colors.text,
         paddingVertical: 15,
-        borderRadius: 16,
+        borderRadius: radius.md,
         alignItems: "center",
     },
     cancelBtn: {
-        backgroundColor: "#EF4444", 
+        backgroundColor: colors.danger,
         marginTop: 10,
-        shadowColor: "#EF4444",
+        shadowColor: colors.danger,
         shadowOpacity: 0.15,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 4 },
@@ -350,6 +407,6 @@ const styles = StyleSheet.create({
     btnText: {
         color: "#fff",
         fontSize: 16,
-        fontWeight: "bold",
+        fontWeight: "700",
     },
 });

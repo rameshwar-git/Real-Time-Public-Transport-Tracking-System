@@ -1,6 +1,8 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { colors, radius, shadow, spacing } from '@/constants/ui';
+import { rateDriver } from '@/services/apiService';
 
 interface TripReceiptProps {
     driverDetails: {
@@ -12,9 +14,34 @@ interface TripReceiptProps {
     origin?: { description?: string } | null;
     destination?: { description?: string } | null;
     onDismiss: () => void;
+    tripId?: string | null;
 }
 
-export const TripReceipt = ({ driverDetails, origin, destination, onDismiss }: TripReceiptProps) => {
+export const TripReceipt = ({ driverDetails, origin, destination, onDismiss, tripId }: TripReceiptProps) => {
+    const [rating, setRating] = useState(0);
+    const [submitting, setSubmitting] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
+
+    const handleRate = async () => {
+        if (!rating) {
+            Alert.alert('Select a rating', 'Please tap a star to rate your driver.');
+            return;
+        }
+        if (!tripId) return;
+        setSubmitting(true);
+        try {
+            const result = await rateDriver(tripId, rating);
+            // "already-rated" means the same trip was reviewed before — still a success.
+            if (result === "already-rated" || result) {
+                setSubmitted(true);
+            }
+        } catch (err) {
+            Alert.alert('Error', 'Failed to submit rating');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
         <View style={styles.overlay}>
             <View style={styles.card}>
@@ -35,9 +62,9 @@ export const TripReceipt = ({ driverDetails, origin, destination, onDismiss }: T
                             {driverDetails?.vehicleModel || 'Vehicle'} • {driverDetails?.vehicleNumber?.toUpperCase() || ''}
                         </Text>
                     </View>
-                    
+
                     <View style={styles.divider} />
-                    
+
                     <View style={styles.locationRow}>
                         <View style={styles.dotOrigin} />
                         <Text style={styles.locationText} numberOfLines={1}>
@@ -63,6 +90,38 @@ export const TripReceipt = ({ driverDetails, origin, destination, onDismiss }: T
                     )}
                 </View>
 
+                {/* Rate the driver */}
+                {!submitted ? (
+                    <View style={styles.ratingBox}>
+                        <Text style={styles.ratingTitle}>Rate your driver</Text>
+                        <View style={styles.starsRow}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <TouchableOpacity key={star} onPress={() => setRating(star)} activeOpacity={0.7}>
+                                    <MaterialIcons
+                                        name={star <= rating ? 'star' : 'star-border'}
+                                        size={36}
+                                        color={star <= rating ? '#F59E0B' : '#CBD5E1'}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        <TouchableOpacity
+                            style={[styles.rateBtn, submitting && { opacity: 0.6 }]}
+                            onPress={handleRate}
+                            disabled={submitting}
+                        >
+                            <Text style={styles.rateBtnText}>
+                                {submitting ? 'Submitting...' : `Submit ${rating ? rating + '★' : ''} Rating`}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <View style={[styles.ratingBox, styles.ratedBox]}>
+                        <MaterialIcons name="star" size={22} color="#F59E0B" />
+                        <Text style={styles.ratedText}>Thank you for rating {rating}★</Text>
+                    </View>
+                )}
+
                 <TouchableOpacity style={styles.doneBtn} onPress={onDismiss}>
                     <Text style={styles.doneBtnText}>Done</Text>
                 </TouchableOpacity>
@@ -82,57 +141,53 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     card: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 24,
+        backgroundColor: colors.surface,
+        borderRadius: radius.xl,
+        padding: spacing.xxl,
         width: '100%',
         maxWidth: 400,
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 20,
-        elevation: 15,
+        ...shadow.pop,
     },
     headerIcon: {
-        marginBottom: 16,
+        marginBottom: spacing.lg,
     },
     title: {
         fontSize: 24,
         fontWeight: '800',
-        color: '#0F172A',
-        marginBottom: 8,
+        color: colors.text,
+        marginBottom: spacing.sm,
     },
     subtitle: {
         fontSize: 15,
-        color: '#64748B',
-        marginBottom: 24,
+        color: colors.textSecondary,
+        marginBottom: spacing.xxl,
         textAlign: 'center',
     },
     detailsContainer: {
         width: '100%',
-        backgroundColor: '#F8FAFC',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 24,
+        backgroundColor: colors.inputBg,
+        borderRadius: radius.lg,
+        padding: spacing.lg,
+        marginBottom: spacing.xxl,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: colors.border,
     },
     detailRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: spacing.md,
     },
     detailText: {
-        marginLeft: 12,
+        marginLeft: spacing.md,
         fontSize: 15,
-        color: '#1E293B',
+        color: colors.text,
         fontWeight: '600',
     },
     divider: {
         height: 1,
-        backgroundColor: '#E2E8F0',
-        marginVertical: 12,
+        backgroundColor: colors.border,
+        marginVertical: spacing.md,
     },
     locationRow: {
         flexDirection: 'row',
@@ -142,13 +197,13 @@ const styles = StyleSheet.create({
         width: 10,
         height: 10,
         borderRadius: 5,
-        backgroundColor: '#3B82F6',
+        backgroundColor: colors.primary,
         marginHorizontal: 5,
     },
     dotDestination: {
         width: 10,
         height: 10,
-        backgroundColor: '#EF4444',
+        backgroundColor: colors.danger,
         marginHorizontal: 5,
     },
     locationLine: {
@@ -159,9 +214,9 @@ const styles = StyleSheet.create({
         marginVertical: 4,
     },
     locationText: {
-        marginLeft: 12,
+        marginLeft: spacing.md,
         fontSize: 14,
-        color: '#475569',
+        color: colors.textSecondary,
         flex: 1,
     },
     fareRow: {
@@ -173,23 +228,65 @@ const styles = StyleSheet.create({
     fareLabel: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#1E293B',
+        color: colors.text,
     },
     fareValue: {
         fontSize: 24,
         fontWeight: '900',
-        color: '#10B981',
+        color: colors.success,
     },
     doneBtn: {
-        backgroundColor: '#4F46E5',
+        backgroundColor: colors.primary,
         width: '100%',
         paddingVertical: 16,
-        borderRadius: 16,
+        borderRadius: radius.md,
         alignItems: 'center',
     },
     doneBtnText: {
         color: '#FFFFFF',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: '700',
+    },
+    ratingBox: {
+        width: '100%',
+        alignItems: 'center',
+        marginBottom: spacing.xl,
+        padding: spacing.lg,
+        backgroundColor: colors.inputBg,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    ratedBox: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: spacing.sm,
+    },
+    ratingTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: colors.text,
+        marginBottom: spacing.md,
+    },
+    starsRow: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+        marginBottom: spacing.lg,
+    },
+    ratedText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: colors.text,
+    },
+    rateBtn: {
+        backgroundColor: colors.warning,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: radius.md,
+    },
+    rateBtnText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '700',
     },
 });

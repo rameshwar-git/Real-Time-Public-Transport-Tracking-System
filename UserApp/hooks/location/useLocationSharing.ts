@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { watchUserLocation } from "@/services/locationServices";
 import { updateLocation } from "@/services/apiService";
+import { startBackgroundLocation, stopBackgroundLocation } from "@/services/backgroundLocation";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { socket } from "@/services/socket";
 
@@ -22,7 +23,7 @@ export const useLocationSharing = (userId: string | null) => {
                 longitude: loc.coords.longitude,
             };
 
-            await updateLocation(userId, coords, destination, locationId, token, status);
+            await updateLocation(coords, destination, locationId, token, status);
 
             // Emit real-time position so the backend can run proximity checks
             if (socket.connected) {
@@ -32,11 +33,18 @@ export const useLocationSharing = (userId: string | null) => {
                 });
             }
         });
+
+        // Keep reporting location when the app is backgrounded / closed. Only meaningful when
+        // actively sharing (an active trip / non-inactive status), not when idle.
+        if (status && status !== 'inactive') {
+            startBackgroundLocation({ userId, token, destination, status });
+        }
     };
 
     const stopSharing = () => {
         locationSub.current?.remove();
         locationSub.current = null;
+        stopBackgroundLocation();
     };
 
     return { startSharing, stopSharing };

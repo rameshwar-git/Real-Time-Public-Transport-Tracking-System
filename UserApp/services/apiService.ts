@@ -32,7 +32,7 @@ export const fetchAllLocations = async (token?: string | null, origin?: { latitu
     }
 };
 
-export const updateLocation = async (userId: string, coords: any, destination?: any, locationId?: string | null, token?: string | null, status?: string) => {
+export const updateLocation = async (coords: any, destination?: any, locationId?: string | null, token?: string | null, status?: string) => {
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
     };
@@ -83,6 +83,46 @@ export const updatePassengerProfile = async (data: any) => {
         body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to update passenger profile");
+    return await res.json();
+};
+
+export const getSavedPlaces = async () => {
+    const res = await authFetch("/passengers/saved-places");
+    if (!res.ok) throw new Error("Failed to fetch saved places");
+    return await res.json();
+};
+
+export const addSavedPlace = async (data: any) => {
+    const res = await authFetch("/passengers/saved-places", {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to add saved place");
+    return await res.json();
+};
+
+export const deleteSavedPlace = async (placeId: string) => {
+    const res = await authFetch(`/passengers/saved-places/${placeId}`, {
+        method: "DELETE",
+    });
+    if (!res.ok) throw new Error("Failed to delete saved place");
+    return await res.json();
+};
+
+export const rateDriver = async (tripId: string, rating: number) => {
+    const res = await authFetch(`/trips/rate-driver/${tripId}`, {
+        method: "PUT",
+        body: JSON.stringify({ rating }),
+    });
+    if (!res.ok) {
+        // A 400 "already rated" means the driver has already been reviewed for this
+        // trip — treat it as already-submitted rather than an error.
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 400 && /already rated/i.test(String(data?.error || ""))) {
+            return "already-rated";
+        }
+        throw new Error("Failed to submit rating");
+    }
     return await res.json();
 };
 

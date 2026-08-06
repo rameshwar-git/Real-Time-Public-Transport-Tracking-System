@@ -8,7 +8,9 @@ import {
     getWeeklyEarnings,
     getDriverProfile,
     updateDriverProfile,
-    getActiveDriverTrips
+    getActiveDriverTrips,
+    getDriverRideHistory,
+    getDriverReports
 } from "@/controllers/user/DriverController";
 import { verifyToken } from "@/middleware/verifyToken";
 
@@ -34,5 +36,9 @@ router.get("/drivers/weekly-earnings", verifyToken, getWeeklyEarnings);
 // Profile
 router.get("/drivers/profile", verifyToken, getDriverProfile);
 router.put("/drivers/profile", verifyToken, updateDriverProfile);
+
+// Ride history & detailed reports
+router.get("/drivers/ride-history", verifyToken, getDriverRideHistory);
+router.get("/drivers/reports", verifyToken, getDriverReports);
 
 export default router;

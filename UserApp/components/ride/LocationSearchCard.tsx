@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { LocationSearchBox } from '@/components/map/LocationSearchBox';
+import { colors, radius, shadow, spacing } from '@/constants/ui';
 
 interface LocationSearchCardProps {
     onSelect: (coords: any) => void;
@@ -27,16 +28,12 @@ const styles = StyleSheet.create({
     searchCard: {
         position: 'absolute',
         top: Platform.OS === 'ios' ? 50 : 5,
-        left: 5,
-        right: 5,
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 5,
-        elevation: 2,
+        left: 8,
+        right: 8,
+        backgroundColor: colors.surface,
+        borderRadius: radius.lg,
+        ...shadow.elevated,
         zIndex: 10,
-        padding: 8,
+        padding: spacing.sm,
     },
 });

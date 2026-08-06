@@ -1,15 +1,19 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Platform, View, StyleSheet, Animated, TouchableOpacity } from "react-native";
 import { UserLocation } from "@/types/map";
 import { Region } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import { env } from "@/config/env";
+import { isValidCoord } from "@/utils/geometry";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 // Modular subcomponents
 import { CenterPin } from "./CenterPin";
 import { renderDestinationMarker } from "./DestinationMarker";
 import { renderDriverMarker } from "./DriverMarker";
+
+// GPS current-position view: animate to show ~100m of radius around the user.
+const GPS_RADIUS_METERS = 100;
 
 type Props = {
     MapView: any;
@@ -57,6 +61,36 @@ export const MapViewComponent: React.FC<Props> = (
     const liftAnim = useRef(new Animated.Value(0)).current;
     const isAnimatingRef = useRef(false);
 
+    // Once a ride is accepted the map switches out of "current-location" mode into
+    // vehicle-tracking mode: the blue current-location dot is hidden and the camera
+    // follows the assigned driver's vehicle along the route.
+    const isTracking =
+        isConfirmed &&
+        tripStatus != null &&
+        tripStatus !== 'completed' &&
+        tripStatus !== 'cancelled';
+
+    // Follow the assigned vehicle at a stable street-level zoom while the trip is active.
+    // Each live driver-location update re-centers on the vehicle along the route WITHOUT
+    // changing the zoom (toGpsRegion keeps constant deltas = pure pan), so the map never
+    // auto zooms in/out as coordinates stream in.
+    useEffect(() => {
+        if (!isTracking || !assignedDriverLocation || !mapRef.current) return;
+        if (
+            typeof assignedDriverLocation.latitude !== 'number' ||
+            typeof assignedDriverLocation.longitude !== 'number' ||
+            isNaN(assignedDriverLocation.latitude) ||
+            isNaN(assignedDriverLocation.longitude)
+        ) return;
+
+        isAnimatingRef.current = true;
+        mapRef.current.animateToRegion(toGpsRegion(assignedDriverLocation), 800);
+        const release = setTimeout(() => {
+            isAnimatingRef.current = false;
+        }, 900);
+        return () => clearTimeout(release);
+    }, [assignedDriverLocation?.latitude, assignedDriverLocation?.longitude, isConfirmed, tripStatus]);
+
     if (!MapView || !mapRegion) return null;
 
     const handleRegionChange = () => {
@@ -83,34 +117,29 @@ export const MapViewComponent: React.FC<Props> = (
         }).start();
     };
 
+    // Build a map region that shows GPS_RADIUS_METERS of radius around a coordinate.
+    // Using degree spans (not a pixel-based zoom) keeps the same spatial scale on any device.
+    const toGpsRegion = (center: { latitude: number; longitude: number }): Region => {
+        const latDelta = (GPS_RADIUS_METERS * 2) / 111320;
+        const lonDelta = latDelta / Math.max(Math.cos((center.latitude * Math.PI) / 180), 0.01);
+        return {
+            latitude: center.latitude,
+            longitude: center.longitude,
+            latitudeDelta: latDelta,
+            longitudeDelta: lonDelta,
+        };
+    };
+
     const handleCenterOnUser = () => {
         if (origin && origin.latitude && origin.longitude && mapRef.current) {
             isAnimatingRef.current = true;
-            mapRef.current.animateCamera(
-                {
-                    center: {
-                        latitude: origin.latitude,
-                        longitude: origin.longitude,
-                    },
-                    zoom: 20, // street-level zoom (~100m radius)
-                },
-                { duration: 1000 }
-            );
-            // Release the guard after animation completes
+            mapRef.current.animateToRegion(toGpsRegion(origin), 2000);
+            // Release the guard after the animation completes
             setTimeout(() => {
                 isAnimatingRef.current = false;
             }, 1100);
         }
     };
-
-    // Reject any coordinate that is 0,0 / NaN / missing — sends NOT_FOUND to Google
-    const isValidCoord = (c: any): boolean =>
-        c != null &&
-        typeof c.latitude === 'number' &&
-        typeof c.longitude === 'number' &&
-        !isNaN(c.latitude) &&
-        !isNaN(c.longitude) &&
-        !(c.latitude === 0 && c.longitude === 0);
 
     return (
         <View style={{ flex: 1 }}>
@@ -120,8 +149,8 @@ export const MapViewComponent: React.FC<Props> = (
                 initialRegion={mapRegion}
                 onRegionChange={handleRegionChange}
                 onRegionChangeComplete={handleRegionChangeComplete}
-                showsUserLocation
-                showsMyLocationButton={false}
+                showsUserLocation={!isTracking}
+                showsMyLocationButton={!isTracking}
                 showsCompass
                 rotateEnabled={false}
                 pitchEnabled
@@ -163,14 +192,11 @@ export const MapViewComponent: React.FC<Props> = (
                         precision="high"
                         timePrecision="now"
                         onReady={(result) => {
-                            // Always fit map to the live route so it's visible on reopen
-                            if (result.coordinates?.length > 1) {
-                                mapRef.current?.fitToCoordinates(result.coordinates, {
-                                    edgePadding: { top: 80, right: 60, bottom: 300, left: 60 },
-                                    animated: true,
-                                    zoom: 20,
-                                });
-                            }
+                            // NOTE: no fitToCoordinates here on purpose. The auto-follow effect
+                            // above owns the camera — it pans at a constant street zoom to keep the
+                            // vehicle tracked. Fitting here would zoom out to the whole route on
+                            // every 10s route refresh and fight the follow, causing the map to
+                            // auto zoom in and out. We only report the live route distance/duration.
                             if (onRouteDetailsUpdated) {
                                 onRouteDetailsUpdated({
                                     distance: result.distance,
@@ -205,7 +231,6 @@ export const MapViewComponent: React.FC<Props> = (
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
     gpsButton: {
         position: 'absolute',
         bottom: 140, // Positioned above the bottom card elements

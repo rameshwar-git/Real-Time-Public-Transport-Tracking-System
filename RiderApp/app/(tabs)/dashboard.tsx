@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -14,16 +13,17 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { getDriverEarnings, getWeeklyEarnings } from '@/services/apiService';
 import { router } from 'expo-router';
-
-const { width } = Dimensions.get('window');
+import { formatFare } from '@/utils/format';
 
 export default function RiderDashboard() {
   const [earnings, setEarnings] = useState({
     totalEarnings: 0,
+    todayEarnings: 0,
     weeklyEarnings: 0,
     weeklyChange: 0,
     completedRides: 0,
     acceptanceRate: 0,
+    rating: 0,
   });
 
   const [chartData, setChartData] = useState<Array<{ day: string; amount: number }>>([]);
@@ -48,10 +48,12 @@ export default function RiderDashboard() {
       if (earningsData) {
         setEarnings({
           totalEarnings: earningsData.totalEarnings || 0,
+          todayEarnings: earningsData.todayEarnings || 0,
           weeklyEarnings: earningsData.weeklyEarnings || 0,
           weeklyChange: earningsData.weeklyChange || 0,
           completedRides: earningsData.completedRides || 0,
           acceptanceRate: earningsData.acceptanceRate || 0,
+          rating: earningsData.rating || 0,
         });
       }
 
@@ -128,9 +130,9 @@ export default function RiderDashboard() {
         <View style={styles.earningsCard}>
           <View style={styles.earningsTop}>
             <View>
-              <Text style={styles.earningsLabel}>Total Earnings</Text>
+              <Text style={styles.earningsLabel}>Today's Earnings</Text>
               <Text style={styles.totalEarnings}>
-                ₹{earnings.totalEarnings.toFixed(2)}
+                {formatFare(earnings.todayEarnings)}
               </Text>
             </View>
             <View style={styles.earningsIconContainer}>
@@ -144,7 +146,7 @@ export default function RiderDashboard() {
 
           <View style={styles.earningsStats}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>₹{earnings.weeklyEarnings.toFixed(2)}</Text>
+              <Text style={styles.statValue}>{formatFare(earnings.weeklyEarnings)}</Text>
               <Text style={styles.statLabel}>This Week</Text>
             </View>
             <View style={[styles.statItem, styles.divider]}>
@@ -181,6 +183,16 @@ export default function RiderDashboard() {
               </View>
               <Text style={styles.metricValue}>{earnings.acceptanceRate}%</Text>
               <Text style={styles.metricLabel}>Acceptance Rate</Text>
+            </View>
+
+            <View style={styles.metricCard}>
+              <View style={styles.metricIconContainer}>
+                <MaterialCommunityIcons name="star" size={28} color="#8B5CF6" />
+              </View>
+              <Text style={styles.metricValue}>
+                {earnings.rating > 0 ? earnings.rating.toFixed(1) : '—'}
+              </Text>
+              <Text style={styles.metricLabel}>Your Rating</Text>
             </View>
           </View>
         </View>
@@ -227,7 +239,7 @@ export default function RiderDashboard() {
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/reports')}>
             <View style={styles.actionIconContainer}>
               <MaterialCommunityIcons
                 name="file-document-outline"
@@ -246,7 +258,7 @@ export default function RiderDashboard() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/ride-history')}>
             <View style={styles.actionIconContainer}>
               <MaterialCommunityIcons
                 name="history"

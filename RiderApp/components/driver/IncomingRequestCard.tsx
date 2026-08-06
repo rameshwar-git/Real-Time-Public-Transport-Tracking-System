@@ -1,5 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { colors, radius, shadow, spacing } from '@/constants/ui';
+import { formatFare, formatKm } from '@/utils/format';
 
 interface IncomingRequestCardProps {
     onAccept: () => void;
@@ -12,6 +15,17 @@ export const IncomingRequestCard = ({ onAccept, onReject, incomingRequest }: Inc
         <View style={styles.incomingRequestCard}>
             <Text style={styles.incomingRequestTitle}>New Ride Request!</Text>
             <Text style={styles.incomingRequestDesc}>A passenger is on your route.</Text>
+
+            {incomingRequest?.passengerRating != null && (
+                <View style={styles.passengerRatingRow}>
+                    <MaterialIcons name="person" size={16} color={colors.textSecondary} />
+                    <Text style={styles.passengerRatingLabel}>Passenger Rating</Text>
+                    <MaterialIcons name="star" size={16} color="#F59E0B" />
+                    <Text style={styles.passengerRatingValue}>
+                        {Number(incomingRequest.passengerRating).toFixed(1)}
+                    </Text>
+                </View>
+            )}
 
             {incomingRequest?.routeMatchPercentage !== undefined && (
                 <View style={styles.matchContainer}>
@@ -50,8 +64,9 @@ export const IncomingRequestCard = ({ onAccept, onReject, incomingRequest }: Inc
                     <Text style={styles.estimateLabel}>RIDE ESTIMATE</Text>
                     <View style={styles.estimatePill}>
                         <Text style={styles.estimateText}>
-                            📏 {incomingRequest.estimatedDistance.toFixed(1)} km  •  ⏱️ {incomingRequest.estimatedDuration} min
-                            {incomingRequest.fare !== undefined && `  •  💰 ₹${Number(incomingRequest.fare).toFixed(2)}`}
+                            📏 {formatKm(incomingRequest.estimatedDistance)}  •  ⏱️ {incomingRequest.estimatedDuration} min
+                            {incomingRequest.fare !== undefined && `  •  💰 ${formatFare(incomingRequest.fare)}`}
+                            {incomingRequest.seats !== undefined && `  •  🪑 ${Math.max(1, Number(incomingRequest.seats) || 1)} seat(s)`}
                         </Text>
                     </View>
                 </View>
@@ -75,55 +90,51 @@ const styles = StyleSheet.create({
         top: Platform.OS === 'ios' ? 120 : 90,
         left: 20,
         right: 20,
-        backgroundColor: '#1E293B',
-        borderRadius: 20,
-        padding: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.35,
-        shadowRadius: 12,
-        elevation: 10,
+        backgroundColor: colors.surface,
+        borderRadius: radius.lg,
+        padding: spacing.xl,
+        ...shadow.elevated,
         zIndex: 100,
-        borderWidth: 1.5,
-        borderColor: '#334155',
+        borderWidth: 1,
+        borderColor: colors.border,
     },
     incomingRequestTitle: {
         fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 8,
-        color: '#F8FAFC',
+        fontWeight: '800',
+        marginBottom: spacing.sm,
+        color: colors.text,
         textAlign: 'center',
         letterSpacing: 0.3,
     },
     incomingRequestDesc: {
         fontSize: 14,
-        color: '#94A3B8',
-        marginBottom: 16,
+        color: colors.textSecondary,
+        marginBottom: spacing.lg,
         textAlign: 'center',
     },
     estimateContainer: {
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: spacing.xl,
     },
     estimateLabel: {
         fontSize: 10,
         fontWeight: 'bold',
-        color: '#64748B',
+        color: colors.textSecondary,
         letterSpacing: 1.2,
         marginBottom: 6,
     },
     estimatePill: {
-        backgroundColor: '#334155',
-        borderColor: '#475569',
+        backgroundColor: colors.primarySoft,
+        borderColor: colors.primaryBorder,
         borderWidth: 1,
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        borderRadius: radius.pill,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.sm,
     },
     estimateText: {
-        color: '#F8FAFC',
+        color: colors.primaryDark,
         fontSize: 14,
-        fontWeight: 'bold',
+        fontWeight: '700',
     },
     incomingRequestActions: {
         flexDirection: 'row',
@@ -132,51 +143,75 @@ const styles = StyleSheet.create({
     actionBtn: {
         flex: 1,
         paddingVertical: 14,
-        borderRadius: 12,
+        borderRadius: radius.md,
         alignItems: 'center',
         marginHorizontal: 6,
-        shadowColor: '#000',
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 3,
         elevation: 2,
     },
     rejectBtn: {
-        backgroundColor: '#EF4444',
+        backgroundColor: colors.danger,
     },
     acceptBtn: {
-        backgroundColor: '#10B981',
+        backgroundColor: colors.primary,
     },
     actionBtnText: {
         color: '#fff',
-        fontWeight: 'bold',
+        fontWeight: '700',
         fontSize: 16,
+    },
+    passengerRatingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+        backgroundColor: colors.warningSoft,
+        borderColor: '#FDE68A',
+        borderWidth: 1,
+        borderRadius: radius.md,
+        paddingVertical: 6,
+        paddingHorizontal: spacing.md,
+        marginBottom: spacing.md,
+        alignSelf: 'center',
+    },
+    passengerRatingLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.textSecondary,
+    },
+    passengerRatingValue: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#D97706',
     },
     matchContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        borderColor: 'rgba(16, 185, 129, 0.25)',
+        backgroundColor: colors.successSoft,
+        borderColor: colors.primaryBorder,
         borderWidth: 1,
-        borderRadius: 12,
+        borderRadius: radius.md,
         paddingVertical: 6,
-        paddingHorizontal: 12,
-        marginBottom: 16,
+        paddingHorizontal: spacing.md,
+        marginBottom: spacing.lg,
         alignSelf: 'center',
     },
     matchText: {
-        color: '#10B981',
+        color: colors.primary,
         fontSize: 14,
-        fontWeight: 'bold',
+        fontWeight: '700',
         letterSpacing: 0.2,
     },
     routeContainer: {
-        backgroundColor: '#0F172A',
-        borderColor: '#334155',
-        borderWidth: 1.5,
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 16,
+        backgroundColor: colors.inputBg,
+        borderColor: colors.border,
+        borderWidth: 1,
+        borderRadius: radius.lg,
+        padding: spacing.lg,
+        marginBottom: spacing.lg,
         width: '100%',
     },
     routeRow: {
@@ -191,23 +226,23 @@ const styles = StyleSheet.create({
         width: 10,
         height: 10,
         borderRadius: 5,
-        backgroundColor: '#10B981',
+        backgroundColor: colors.primary,
     },
     connectorLine: {
         width: 2,
         flex: 1,
-        backgroundColor: '#334155',
+        backgroundColor: colors.borderStrong,
         marginVertical: 4,
     },
     destDot: {
         width: 10,
         height: 10,
         borderRadius: 5,
-        backgroundColor: '#EF4444',
+        backgroundColor: colors.danger,
     },
     addressColumn: {
         flex: 1,
-        marginLeft: 12,
+        marginLeft: spacing.md,
     },
     addressBlock: {
         justifyContent: 'center',
@@ -215,12 +250,12 @@ const styles = StyleSheet.create({
     locationLabel: {
         fontSize: 10,
         fontWeight: 'bold',
-        color: '#64748B',
+        color: colors.textSecondary,
         letterSpacing: 1.2,
         marginBottom: 4,
     },
     locationText: {
-        color: '#F8FAFC',
+        color: colors.text,
         fontSize: 14,
         fontWeight: '600',
     },

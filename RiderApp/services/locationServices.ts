@@ -5,20 +5,6 @@ export const requestPermission = async () => {
     return status === "granted";
 };
 
-export const watchUserLocation = async (emitterCallback: (coords: { latitude: number; longitude: number }) => void) => {
-    return await Location.watchPositionAsync(
-        {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 3000,
-            distanceInterval: 5,
-        },
-        (location) => {
-            const coords = { latitude: location.coords.latitude, longitude: location.coords.longitude };
-            emitterCallback(coords);
-        }
-    );
-};
-
 export const getCurrentLocation = async () => {
     try {
         const { status } = await Location.requestForegroundPermissionsAsync();

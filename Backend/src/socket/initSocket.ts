@@ -1,11 +1,13 @@
 import PassengerModel from "@/models/users/UserPassengerModel";
-import { connectedUsers, disconnectTimeouts } from './connectionManager';
+import { connectedUsers, disconnectTimeouts, setSocketIO } from './connectionManager';
 import { registerRideHandlers } from './handlers/rideHandler';
 import { registerTripHandlers } from './handlers/tripHandler';
 import { registerLocationHandler } from './handlers/locationHandler';
 import { registerDisconnectHandler } from './handlers/disconnectHandler';
 
 export default function initSocket(io: any) {
+    setSocketIO(io);
+
     io.on("connection", (socket: any) => {
         console.log("User connected");
 

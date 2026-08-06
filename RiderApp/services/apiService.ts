@@ -33,7 +33,7 @@ export const fetchAllLocations = async (token?: string | null, origin?: { latitu
     }
 };
 
-export const updateLocation = async (userId: string, coords: any, destination?: any, locationId?: string, token?: string | null, status?: string) => {
+export const updateLocation = async (coords: any, destination?: any, locationId?: string, token?: string | null, status?: string) => {
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
     };
@@ -78,5 +78,34 @@ export const updateDriverProfile = async (data: any) => {
 export const getActiveDriverTrips = async () => {
     const res = await authFetch("/drivers/active-trips");
     if (!res.ok) throw new Error("Failed to fetch active trips");
+    return await res.json();
+};
+
+export const getDriverRideHistory = async () => {
+    const res = await authFetch("/drivers/ride-history");
+    if (!res.ok) throw new Error("Failed to fetch ride history");
+    return await res.json();
+};
+
+export const getDriverReports = async () => {
+    const res = await authFetch("/drivers/reports");
+    if (!res.ok) throw new Error("Failed to fetch driver reports");
+    return await res.json();
+};
+
+export const ratePassenger = async (tripId: string, rating: number) => {
+    const res = await authFetch(`/trips/rate-passenger/${tripId}`, {
+        method: "PUT",
+        body: JSON.stringify({ rating }),
+    });
+    if (!res.ok) {
+        // A 400 "already rated" means the passenger has already been reviewed for this
+        // trip — treat it as already-submitted rather than an error.
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 400 && /already rated/i.test(String(data?.error || ""))) {
+            return "already-rated";
+        }
+        throw new Error("Failed to submit rating");
+    }
     return await res.json();
 };

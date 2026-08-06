@@ -156,7 +156,10 @@ export function useDriverDashboard() {
             driverId: userId,
             origin: incomingRequest.origin,
             destination: incomingRequest.destination,
-            fare: incomingRequest.fare
+            fare: incomingRequest.fare,
+            // Echo the seat count the passenger asked for so the vehicle decrements
+            // exactly that many seats and can reject if they were booked out meanwhile.
+            seats: Math.max(1, Number(incomingRequest.seats) || 1)
         });
 
         setIncomingRequest(null);
@@ -210,6 +213,15 @@ export function useDriverDashboard() {
     const completeTrip = (trip: any) => {
         if (!trip || !trip.tripId) return;
         socket.emit("dropoff-passenger", { tripId: trip.tripId });
+        // Keep the trip visible in a "Completed" state so the driver can rate
+        // the passenger before dismissing the card.
+        setActiveTrips(prev => prev.map(t => t.tripId === trip.tripId ? { ...t, status: 'completed' } : t));
+    };
+
+    const dismissCompletedTrip = (trip: any) => {
+        if (!trip || !trip.tripId) return;
+        // Remove a completed trip from the list once the driver is done with it
+        // (after rating / dismissing the completion card).
         setActiveTrips(prev => prev.filter(t => t.tripId !== trip.tripId));
     };
 
@@ -225,14 +237,19 @@ export function useDriverDashboard() {
         ]);
     };
 
-    const handleChooseOnMap = async () => {
-        setIsChoosingOnMap(true);
-        const centerCoords = { latitude: mapRegion.latitude, longitude: mapRegion.longitude };
-        setPinCoords(centerCoords);
-        const address = await reverseGeocode(mapRegion.latitude, mapRegion.longitude);
+    // Update the map-pin coordinates and reverse-geocode the given lat/lng so the
+    // pin card can show the address under the crosshair.
+    const updatePinFromCoords = async (latitude: number, longitude: number) => {
+        setPinCoords({ latitude, longitude });
+        const address = await reverseGeocode(latitude, longitude);
         if (address) {
             setPinAddress(address);
         }
+    };
+
+    const handleChooseOnMap = async () => {
+        setIsChoosingOnMap(true);
+        await updatePinFromCoords(mapRegion.latitude, mapRegion.longitude);
     };
 
     const handleConfirmPinLocation = async () => {
@@ -261,12 +278,7 @@ export function useDriverDashboard() {
     const handleRegionChangeComplete = async (region: any) => {
         setMapRegion(region);
         if (isChoosingOnMap) {
-            const centerCoords = { latitude: region.latitude, longitude: region.longitude };
-            setPinCoords(centerCoords);
-            const address = await reverseGeocode(region.latitude, region.longitude);
-            if (address) {
-                setPinAddress(address);
-            }
+            await updatePinFromCoords(region.latitude, region.longitude);
         }
     };
 
@@ -345,5 +357,6 @@ export function useDriverDashboard() {
         handleDestinationPress,
         startTrip,
         completeTrip,
+        dismissCompletedTrip,
     };
 }

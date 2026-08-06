@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, LayoutAnimation } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { getDistance } from '@/utils/geometry';
+import { colors, radius, spacing } from '@/constants/ui';
 
 interface RideStatusBottomSheetProps {
     tripStatus: string | null;
@@ -21,6 +22,8 @@ interface RideStatusBottomSheetProps {
     origin?: { latitude: number; longitude: number } | null;
     destination?: { latitude: number; longitude: number } | null;
     routeDetails?: { distance: number; duration: number } | null;
+    /** Live available-seat count for the vehicle, streamed over the socket. */
+    availableSeats?: number | null;
 }
 
 export const RideStatusBottomSheet = ({
@@ -30,7 +33,8 @@ export const RideStatusBottomSheet = ({
     assignedDriverLocation,
     origin,
     destination,
-    routeDetails
+    routeDetails,
+    availableSeats
 }: RideStatusBottomSheetProps) => {
 
     const [isExpanded, setIsExpanded] = useState(true);
@@ -184,6 +188,16 @@ export const RideStatusBottomSheet = ({
                                 </Text>
                             </View>
 
+                            {/* Live available seats */}
+                            {availableSeats != null && (
+                                <View style={[styles.vehicleDetailsBadge, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0', borderWidth: 1, marginBottom: 0 }]}>
+                                    <MaterialIcons name="event-seat" size={16} color="#059669" />
+                                    <Text style={[styles.vehicleModelText, { color: '#059669' }]}>
+                                        {availableSeats} seat{availableSeats !== 1 ? 's' : ''} left
+                                    </Text>
+                                </View>
+                            )}
+
                             {/* Fare badge */}
                             {driverDetails?.fare !== undefined && (
                                 <View style={[styles.vehicleDetailsBadge, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE', borderWidth: 1, marginBottom: 0 }]}>
@@ -240,24 +254,24 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: "#FFFFFF",
-        paddingHorizontal: 20,
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.xl,
         paddingTop: 14,
         paddingBottom: 30,
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
+        borderTopLeftRadius: radius.xl,
+        borderTopRightRadius: radius.xl,
         elevation: 24,
-        shadowColor: '#0F172A',
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: -8 },
         shadowOpacity: 0.15,
         shadowRadius: 16,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: colors.border,
     },
     handleBar: {
         width: 44,
         height: 5,
-        backgroundColor: '#E2E8F0',
+        backgroundColor: colors.borderStrong,
         borderRadius: 5,
         alignSelf: 'center',
         marginBottom: 16,
@@ -267,22 +281,22 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        borderRadius: 16,
+        borderRadius: radius.md,
         marginBottom: 18,
         borderWidth: 1,
     },
     bannerScheduled: {
-        backgroundColor: '#EEF2FF', // soft indigo tint
+        backgroundColor: colors.infoSoft,
         borderColor: '#C7D2FE',
     },
     bannerProgress: {
-        backgroundColor: '#ECFDF5', // soft emerald tint
+        backgroundColor: colors.successSoft,
         borderColor: '#A7F3D0',
     },
     liveIndicatorContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#1E293B',
+        backgroundColor: colors.text,
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 20,
@@ -292,7 +306,7 @@ const styles = StyleSheet.create({
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: '#10B981', // emerald green glowing dot
+        backgroundColor: colors.success,
         marginRight: 6,
     },
     liveIndicatorText: {
@@ -311,28 +325,28 @@ const styles = StyleSheet.create({
     },
     etaText: {
         fontSize: 14,
-        color: '#1E293B',
+        color: colors.text,
     },
     boldText: {
         fontWeight: '800',
-        color: '#0F172A',
+        color: colors.text,
     },
     distanceText: {
         fontSize: 14,
-        color: '#64748B',
+        color: colors.textSecondary,
         marginLeft: 6,
         fontWeight: '600',
     },
     calculatingText: {
         fontSize: 13,
-        color: '#64748B',
+        color: colors.textSecondary,
         fontStyle: 'italic',
     },
     otpTicket: {
-        backgroundColor: '#F8FAFC',
+        backgroundColor: colors.inputBg,
         borderWidth: 1.5,
-        borderColor: '#E2E8F0',
-        borderRadius: 16,
+        borderColor: colors.border,
+        borderRadius: radius.lg,
         padding: 16,
         alignItems: 'center',
         marginBottom: 18,
@@ -346,9 +360,9 @@ const styles = StyleSheet.create({
         width: 14,
         height: 14,
         borderRadius: 7,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.surface,
         borderRightWidth: 1.5,
-        borderColor: '#E2E8F0',
+        borderColor: colors.border,
         transform: [{ translateY: -7 }],
     },
     ticketRightDot: {
@@ -358,39 +372,39 @@ const styles = StyleSheet.create({
         width: 14,
         height: 14,
         borderRadius: 7,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.surface,
         borderLeftWidth: 1.5,
-        borderColor: '#E2E8F0',
+        borderColor: colors.border,
         transform: [{ translateY: -7 }],
     },
     otpLabel: {
         fontSize: 10,
         fontWeight: 'bold',
-        color: '#64748B',
+        color: colors.textSecondary,
         letterSpacing: 1.2,
-        marginBottom: 8,
+        marginBottom: spacing.sm,
         textAlign: 'center',
     },
     otpCard: {
-        backgroundColor: '#EEF2FF',
+        backgroundColor: colors.primarySoft,
         paddingHorizontal: 24,
         paddingVertical: 8,
-        borderRadius: 12,
+        borderRadius: radius.md,
         borderWidth: 1,
-        borderColor: '#C7D2FE',
+        borderColor: colors.primaryBorder,
     },
     otpValue: {
         fontSize: 28,
         fontWeight: '900',
-        color: '#4F46E5',
+        color: colors.primary,
         letterSpacing: 6,
     },
     driverCard: {
-        backgroundColor: '#F8FAFC',
-        borderRadius: 20,
+        backgroundColor: colors.inputBg,
+        borderRadius: radius.lg,
         padding: 16,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: colors.border,
         marginBottom: 18,
     },
     driverHeader: {
@@ -402,7 +416,7 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: '#4F46E5', // vibrant premium brand color
+        backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -418,7 +432,7 @@ const styles = StyleSheet.create({
     driverName: {
         fontSize: 16,
         fontWeight: '800',
-        color: '#0F172A',
+        color: colors.text,
         marginBottom: 2,
     },
     ratingRow: {
@@ -427,14 +441,14 @@ const styles = StyleSheet.create({
     },
     ratingText: {
         fontSize: 12,
-        color: '#64748B',
+        color: colors.textSecondary,
         marginLeft: 4,
         fontWeight: '600',
     },
     plateContainer: {
         backgroundColor: '#F1F5F9',
         borderWidth: 1.5,
-        borderColor: '#CBD5E1',
+        borderColor: colors.borderStrong,
         borderRadius: 8,
         paddingHorizontal: 10,
         paddingVertical: 5,
@@ -444,13 +458,13 @@ const styles = StyleSheet.create({
     plateText: {
         fontSize: 12,
         fontWeight: '800',
-        color: '#0F172A',
+        color: colors.text,
         letterSpacing: 1,
     },
     vehicleDetailsBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#E2E8F0',
+        backgroundColor: colors.border,
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 8,
@@ -460,12 +474,12 @@ const styles = StyleSheet.create({
     vehicleModelText: {
         fontSize: 12,
         fontWeight: '700',
-        color: '#475569',
+        color: colors.textSecondary,
         marginLeft: 6,
     },
     statusDescription: {
         fontSize: 13,
-        color: '#64748B',
+        color: colors.textSecondary,
         lineHeight: 18,
     },
     actionsContainer: {
@@ -478,42 +492,42 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#F1F5F9',
+        backgroundColor: colors.inputBg,
         paddingVertical: 12,
-        borderRadius: 14,
+        borderRadius: radius.md,
         marginHorizontal: 4,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: colors.border,
     },
     actionBtnText: {
         marginLeft: 6,
         fontSize: 13,
         fontWeight: '700',
-        color: '#1E293B',
+        color: colors.text,
     },
     callBtn: {
-        backgroundColor: '#EEF2FF',
+        backgroundColor: colors.infoSoft,
         borderColor: '#E0E7FF',
     },
     messageBtn: {
-        backgroundColor: '#EEF2FF',
+        backgroundColor: colors.infoSoft,
         borderColor: '#E0E7FF',
     },
     sosBtn: {
-        backgroundColor: '#FEF2F2',
+        backgroundColor: colors.dangerSoft,
         borderColor: '#FEE2E2',
     },
     sosBtnText: {
-        color: '#EF4444',
+        color: colors.danger,
     },
     cancelBtn: {
         flexDirection: 'row',
-        backgroundColor: "#EF4444",
+        backgroundColor: colors.danger,
         paddingVertical: 15,
-        borderRadius: 14,
+        borderRadius: radius.md,
         alignItems: "center",
         justifyContent: 'center',
-        shadowColor: "#EF4444",
+        shadowColor: colors.danger,
         shadowOpacity: 0.15,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 4 },

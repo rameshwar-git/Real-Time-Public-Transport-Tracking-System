@@ -1,10 +1,10 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Platform, View, StyleSheet, Animated, TouchableOpacity } from "react-native";
 import { UserLocation } from "@/types/map";
 import { Region } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import { env } from "@/config/env";
-import { getNearestNUsers, calculateRouteMatch } from "@/utils/geometry";
+import { getNearestNUsers, calculateRouteMatch, isValidCoord } from "@/utils/geometry";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 // Modular subcomponents
@@ -12,6 +12,9 @@ import { CenterPin } from "./CenterPin";
 import { renderDestinationMarker } from "./DestinationMarker";
 import { renderPassengerMarker } from "./PassengerMarker";
 import { renderDriverMarker } from "./DriverMarker";
+
+// GPS current-position view: animate to show ~100m of radius around the driver.
+const GPS_RADIUS_METERS = 100;
 
 type Props = {
     MapView: any;
@@ -23,7 +26,6 @@ type Props = {
     destination: any;
     origin: any;
     mapRef: any;
-    isConfirmed?: boolean;
     activeTrips?: any[];
     isOnDuty?: boolean;
     onDestinationPress?: () => void;
@@ -41,7 +43,6 @@ export const MapViewComponent: React.FC<Props> = (
         destination,
         origin,
         mapRef,
-        isConfirmed,
         activeTrips,
         isOnDuty,
         onDestinationPress,
@@ -50,7 +51,9 @@ export const MapViewComponent: React.FC<Props> = (
     const isLifted = useRef(false);
     const liftAnim = useRef(new Animated.Value(0)).current;
 
-    if (!MapView || !mapRegion) return null;
+    // The driver's own live coordinate (from their shared location feed). The driver app shows
+    // it as the standard blue current-location dot, and the camera follows it along the route.
+    const ownLocation = locations.find((u: any) => u.userId === currentUserId)?.currentLocation;
 
     const handleRegionChange = () => {
         if (!isLifted.current) {
@@ -74,25 +77,56 @@ export const MapViewComponent: React.FC<Props> = (
         }).start();
     };
 
+    // Build a map region that shows GPS_RADIUS_METERS of radius around a coordinate.
+    // Using degree spans (not a pixel-based zoom) keeps the same spatial scale on any device.
+    const toGpsRegion = (center: { latitude: number; longitude: number }): Region => {
+        const latDelta = (GPS_RADIUS_METERS * 2) / 111320;
+        const lonDelta = latDelta / Math.max(Math.cos((center.latitude * Math.PI) / 180), 0.01);
+        return {
+            latitude: center.latitude,
+            longitude: center.longitude,
+            latitudeDelta: latDelta,
+            longitudeDelta: lonDelta,
+        };
+    };
+
     const handleCenterOnUser = () => {
         if (origin && origin.latitude && origin.longitude && mapRef.current) {
-            mapRef.current.animateToRegion({
-                latitude: origin.latitude,
-                longitude: origin.longitude,
-                latitudeDelta: 0.0040, // zoom level for radius
-                longitudeDelta: 0.0040,
-            }, 1000);
+            mapRef.current.animateToRegion(toGpsRegion(origin), 2000);
         }
     };
 
-    // Reject 0,0 / NaN / null coords — prevents Google Maps NOT_FOUND errors
-    const isValidCoord = (c: any): boolean =>
-        c != null &&
-        typeof c.latitude === 'number' &&
-        typeof c.longitude === 'number' &&
-        !isNaN(c.latitude) &&
-        !isNaN(c.longitude) &&
-        !(c.latitude === 0 && c.longitude === 0);
+    // Keep the camera centered on the driver whenever a route is on screen (on duty with a
+    // destination), so upcoming street turns stay in view. Constant deltas mean the camera only
+    // pans (never re-zooms), so live location updates don't cause auto zoom in/out.
+    const shouldFollow = !!isOnDuty && !!origin && !!destination && !isChoosingOnMap;
+    useEffect(() => {
+        if (!shouldFollow || !ownLocation || !mapRef.current) return;
+        if (
+            typeof ownLocation.latitude !== 'number' ||
+            typeof ownLocation.longitude !== 'number' ||
+            isNaN(ownLocation.latitude) ||
+            isNaN(ownLocation.longitude)
+        ) return;
+        mapRef.current.animateToRegion(toGpsRegion({ latitude: ownLocation.latitude, longitude: ownLocation.longitude }), 800);
+    }, [ownLocation?.latitude, ownLocation?.longitude, shouldFollow]);
+
+    // Accepted-but-not-yet-picked-up passengers become route waypoints, so the navigation
+    // line reroutes through their pickup points on the way to the final destination.
+    const scheduledPickups = (Array.isArray(activeTrips) ? activeTrips : [])
+        .filter((t: any) => t.status === 'scheduled')
+        .map((t: any) => t.origin)
+        .filter((o: any) =>
+            o && typeof o.latitude === 'number' && typeof o.longitude === 'number' &&
+            !isNaN(o.latitude) && !isNaN(o.longitude) &&
+            !(o.latitude === 0 && o.longitude === 0)
+        );
+
+    if (!MapView || !mapRegion) {
+        // We still need to return null if components are missing,
+        // but we must ensure all hooks are declared before this point.
+        return null;
+    }
 
     return (
         <View style={{ flex: 1 }}>
@@ -178,16 +212,11 @@ export const MapViewComponent: React.FC<Props> = (
                     <MapViewDirections
                         origin={origin}
                         destination={destination}
+                        waypoints={scheduledPickups}
                         apikey={env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}
                         strokeWidth={5}
                         strokeColor="blue"
                         mode="DRIVING"
-                        onReady={(result) => {
-                            mapRef.current?.fitToCoordinates(result.coordinates, {
-                                edgePadding: { top: 80, right: 60, bottom: 220, left: 60 },
-                                animated: true,
-                            });
-                        }}
                         onError={(err) => console.warn('[MapViewDirections] Route error:', err)}
                     />
                 )}

@@ -1,17 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
+import { upsertDriverLocation } from '@/utils/location';
 
 interface UseRideSocketEventsProps {
     socket: any;
     userId: string | null;
-    origin: any;
-    destination: any;
     searchTimeoutRef: React.MutableRefObject<any>;
     currentDriverIndexRef: React.MutableRefObject<number>;
     requestNextDriver: (index: number) => void;
     setAssignedDriverId: (id: string | null) => void;
     setDriverDetails: (details: any) => void;
     setTripId: (id: string | null) => void;
+    setOtp: (otp: string | null) => void;
     setTripStatus: (status: string | null) => void;
     setIsSearching: (isSearching: boolean) => void;
     setIsConfirmed: (isConfirmed: boolean) => void;
@@ -21,19 +21,20 @@ interface UseRideSocketEventsProps {
     stopSharing: () => void;
     assignedDriverId: string | null;
     setLocations: React.Dispatch<React.SetStateAction<any[]>>;
+    /** Optional state setter to receive the latest available-seat count in real time. */
+    setAvailableSeats?: (val: number | null) => void;
 }
 
 export const useRideSocketEvents = ({
     socket,
     userId,
-    origin,
-    destination,
     searchTimeoutRef,
     currentDriverIndexRef,
     requestNextDriver,
     setAssignedDriverId,
     setDriverDetails,
     setTripId,
+    setOtp,
     setTripStatus,
     setIsSearching,
     setIsConfirmed,
@@ -42,7 +43,8 @@ export const useRideSocketEvents = ({
     setRouteDetails,
     stopSharing,
     assignedDriverId,
-    setLocations
+    setLocations,
+    setAvailableSeats
 }: UseRideSocketEventsProps) => {
     // Use refs for callback props that change every render
     // so the useEffect doesn't constantly re-register listeners
@@ -74,14 +76,26 @@ export const useRideSocketEvents = ({
                 fare: data.fare,
             });
             setTripId(data.tripId);
+            setOtp(data.otp || null);
             setTripStatus('scheduled');
             setIsSearching(false);
             acceptedVehicleTypeRef.current = data.vehicleType || null;
+            if (setAvailableSeats && data.availableSeats != null) {
+                setAvailableSeats(Number(data.availableSeats));
+            }
         };
 
         const onRideRejected = (_data: any) => {
             if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
             requestNextDriverRef.current(currentDriverIndexRef.current + 1);
+        };
+
+        // Real-time seat stream: sent right after a booking (accept) and carried on every
+        // driver-location-updated ping while the ride is active.
+        const onSeatsUpdated = (data: any) => {
+            if (setAvailableSeats && data.availableSeats != null) {
+                setAvailableSeats(Number(data.availableSeats));
+            }
         };
 
         const onTripStarted = (data: any) => {
@@ -101,30 +115,24 @@ export const useRideSocketEvents = ({
             setAssignedDriverId(null);
             setDriverDetails(null);
             setTripId(null);
+            setOtp(null);
             setTripStatus(null);
             setIsConfirmed(false);
             setIsSearching(false);
             setDestination(null);
             setDestinationText("");
             setRouteDetails(null);
+            if (setAvailableSeats) setAvailableSeats(null);
             stopSharingRef.current();
             if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
         };
 
         const onDriverLocationUpdated = (data: any) => {
             if (data.driverId === assignedDriverId) {
-                setLocations((prev: any[]) => {
-                    const exists = prev.some((loc: any) => loc.userId === data.driverId);
-                    if (exists) {
-                        return prev.map((loc: any) =>
-                            loc.userId === data.driverId
-                                ? { ...loc, currentLocation: data.currentLocation, vehicleId: loc.vehicleId || { vehicleType: acceptedVehicleTypeRef.current } }
-                                : loc
-                        );
-                    }
-                    // Seed driver entry if not yet in locations list (happens on reopen)
-                    return [...prev, { userId: data.driverId, currentLocation: data.currentLocation, vehicleId: { vehicleType: acceptedVehicleTypeRef.current } }];
-                });
+                setLocations(prev => upsertDriverLocation(prev, data.driverId, data.currentLocation, acceptedVehicleTypeRef.current));
+                if (setAvailableSeats && data.availableSeats != null) {
+                    setAvailableSeats(Number(data.availableSeats));
+                }
             }
         };
 
@@ -139,6 +147,7 @@ export const useRideSocketEvents = ({
         socket.on("trip-canceled", onTripCanceled);
         socket.on("trip-cancel-error", onTripCancelError);
         socket.on("driver-location-updated", onDriverLocationUpdated);
+        socket.on("seats-updated", onSeatsUpdated);
 
         return () => {
             socket.off("ride-accepted", onRideAccepted);
@@ -148,6 +157,7 @@ export const useRideSocketEvents = ({
             socket.off("trip-canceled", onTripCanceled);
             socket.off("trip-cancel-error", onTripCancelError);
             socket.off("driver-location-updated", onDriverLocationUpdated);
+            socket.off("seats-updated", onSeatsUpdated);
         };
-    }, [userId, socket, assignedDriverId, setLocations]);
+    }, [userId, socket, assignedDriverId, setLocations, setAvailableSeats]);
 };

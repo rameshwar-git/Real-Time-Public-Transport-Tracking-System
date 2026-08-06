@@ -1,5 +1,4 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
     "rootDir": "./src",
@@ -8,28 +7,27 @@
     // See also https://aka.ms/tsconfig/module
     "module": "commonjs",
     "target": "es6",
-    "baseUrl": "./src",
     "paths": {
       "@/*": [
-        "*"
+        "./src/*"
       ],
       "@config/*": [
-        "config/*"
+        "./src/config/*"
       ],
       "@eums/*": [
-        "enums/*"
+        "./src/enums/*"
       ],
       "@controllers/*": [
-        "controllers/*"
+        "./src/controllers/*"
       ],
       "@models/*": [
-        "models/*"
+        "./src/models/*"
       ],
       "@util/*": [
-        "util/*"
+        "./src/util/*"
       ],
       "@routes/*": [
-        "routes/*"
+        "./src/routes/*"
       ]
     },
     "typeRoots": [

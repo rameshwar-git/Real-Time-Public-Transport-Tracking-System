@@ -34,6 +34,17 @@ export interface Coords {
 export type MaybeCoords = Coords | null | undefined;
 
 /**
+ * Reject 0,0 / NaN / missing coordinates — prevents Google Maps NOT_FOUND errors.
+ */
+export const isValidCoord = (c: any): boolean =>
+    c != null &&
+    typeof c.latitude === 'number' &&
+    typeof c.longitude === 'number' &&
+    !isNaN(c.latitude) &&
+    !isNaN(c.longitude) &&
+    !(c.latitude === 0 && c.longitude === 0);
+
+/**
  * Checks if a driver's route matches a passenger's desired route.
  * @param driverLoc Current location of the driver
  * @param driverDest Destination of the driver
@@ -77,30 +88,6 @@ export const calculateRouteMatch = (
         detourDist: totalDetourDist,
         pickupDist: distToPassenger
     };
-};
-
-/**
- * Finds the nearest user from a list of users based on current location.
- * @param users List of user objects with currentLocation
- * @param origin Source location to measure from
- * @returns The nearest user object or null
- */
-export const findNearestUser = <T extends { currentLocation?: MaybeCoords }>(users: T[], origin: Coords): T | null => {
-    if (users.length === 0) return null;
-
-    let nearest: T | null = null;
-    let minDistance = Infinity;
-
-    for (const u of users) {
-        if (!u.currentLocation) continue;
-        const dist = getDistance(origin.latitude, origin.longitude, u.currentLocation.latitude, u.currentLocation.longitude);
-        if (dist < minDistance) {
-            minDistance = dist;
-            nearest = u;
-        }
-    }
-
-    return nearest;
 };
 
 /**

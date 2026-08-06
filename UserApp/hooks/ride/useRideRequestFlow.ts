@@ -2,6 +2,7 @@ import { Alert } from 'react-native';
 import { findDrivers } from '@/services/apiService';
 import { getToken } from '@/services/storageService';
 import { getDistance } from '@/utils/geometry';
+import { calculateEstimatedFare, roundToNearestFive } from '@/utils/fare';
 
 interface UseRideRequestFlowProps {
     socket: any;
@@ -18,6 +19,8 @@ interface UseRideRequestFlowProps {
     setCurrentDriverIndex?: (val: number) => void;
     selectedVehicleType?: 'all' | 'tricycle' | 'bus';
     routeDetails?: { distance: number; duration: number } | null;
+    /** How many seats this passenger wants to book (defaults to 1). */
+    seatsNeeded?: number;
 }
 
 export const useRideRequestFlow = ({
@@ -34,8 +37,12 @@ export const useRideRequestFlow = ({
     setMatchedDrivers,
     setCurrentDriverIndex,
     selectedVehicleType = 'all',
-    routeDetails
+    routeDetails,
+    seatsNeeded = 1
 }: UseRideRequestFlowProps) => {
+
+    // Number of seats the passenger wants on this shared/public-transport vehicle.
+    const requestedSeats = Math.max(1, Math.floor(seatsNeeded) || 1);
 
     const requestNextDriver = (index: number) => {
         const drivers = pendingDriversRef.current;
@@ -53,20 +60,6 @@ export const useRideRequestFlow = ({
         startSharing(destination, 'confirmed');
 
         // Calculate passenger fare based on passenger math to send to driver to match fare
-        const roundToNearestFive = (val: number): number => {
-            const rem = val % 5;
-            if (rem < 3) {
-                return Math.floor(val / 5) * 5;
-            } else {
-                return Math.ceil(val / 5) * 5;
-            }
-        };
-
-        const calculateEstimatedFare = (dist: number): number => {
-            if (!dist || isNaN(dist)) return 10;
-            if (dist <= 2.5) return 10;
-            return Number((10 + (dist - 2.5) * 2).toFixed(2));
-        };
         const calculatedDistance = routeDetails?.distance || (origin && destination ? getDistance(origin.latitude, origin.longitude, destination.latitude, destination.longitude) : 0);
         const baseFare = calculateEstimatedFare(calculatedDistance);
         
@@ -84,13 +77,34 @@ export const useRideRequestFlow = ({
             driverId: driver.userId,
             origin,
             destination,
-            passengerFare
+            passengerFare,
+            seats: requestedSeats
         });
 
         if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
         searchTimeoutRef.current = setTimeout(() => {
             requestNextDriver(index + 1);
         }, 8000);
+    };
+
+    // Per-driver selection: clear any pending auto-advance and contact a specific
+    // vehicle (e.g. the one the passenger tapped with enough seats). Auto-advance
+    // still kicks in if that chosen driver rejects, so the search keeps moving.
+    const requestSpecificDriver = (index: number) => {
+        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+        requestNextDriver(index);
+    };
+
+    // Tap-to-board from the pre-ride browse list: the drivers were already fetched and
+    // stored in pendingDriversRef, so jump straight to contacting the chosen vehicle
+    // (instead of starting the auto-iterate search from driver 0).
+    const requestDriverAt = (index: number) => {
+        const drivers = pendingDriversRef.current;
+        if (!Array.isArray(drivers) || drivers.length === 0) return;
+        if (setMatchedDrivers) setMatchedDrivers(drivers);
+        setIsSearching(true);
+        setIsConfirmed(true);
+        requestSpecificDriver(index);
     };
 
     const handleConfirmRide = async () => {
@@ -128,5 +142,5 @@ export const useRideRequestFlow = ({
         requestNextDriver(0);
     };
 
-    return { requestNextDriver, handleConfirmRide };
+    return { requestNextDriver, requestSpecificDriver, requestDriverAt, handleConfirmRide };
 };

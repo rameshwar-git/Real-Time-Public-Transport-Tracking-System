@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -14,8 +13,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { getUpcomingRides, getRecentRides, getPassengerStats, getCurrentUser } from '@/services/apiService';
 import { router, useFocusEffect } from 'expo-router';
-
-const { width } = Dimensions.get('window');
 
 export default function UserDashboard() {
   const [upcomingRides, setUpcomingRides] = useState<any[]>([]);
@@ -316,7 +313,7 @@ export default function UserDashboard() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/saved-places')}>
             <View style={styles.actionIconContainer}>
               <MaterialCommunityIcons
                 name="map-outline"
@@ -335,7 +332,7 @@ export default function UserDashboard() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/help-support')}>
             <View style={styles.actionIconContainer}>
               <MaterialCommunityIcons
                 name="help-circle-outline"
@@ -521,18 +518,12 @@ const styles = StyleSheet.create({
   statusConfirmed: {
     backgroundColor: '#ECFDF5',
   },
-  statusScheduled: {
-    backgroundColor: '#EFF6FF',
-  },
   statusText: {
     fontSize: 11,
     fontWeight: '600',
   },
   statusTextConfirmed: {
     color: '#10B981',
-  },
-  statusTextScheduled: {
-    color: '#3B82F6',
   },
   rideFooter: {
     flexDirection: 'row',

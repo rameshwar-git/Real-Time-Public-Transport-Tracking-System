@@ -6,6 +6,7 @@ import { getCurrentLocation } from "@/services/locationServices";
 import LocationSearchInput from "@ui/LocationSearchInput";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Clock, MapPin } from "lucide-react-native";
+import { colors, radius, shadow, spacing } from "@/constants/ui";
 
 
 interface PlacePrediction {
@@ -203,16 +204,12 @@ const styles = StyleSheet.create({
         width: "100%",
     },
     dropdownContainer: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 12,
-        marginTop: 8,
+        backgroundColor: colors.surface,
+        borderRadius: radius.md,
+        marginTop: spacing.sm,
         borderWidth: 1,
-        borderColor: "#E2E8F0",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 5,
-        elevation: 4,
+        borderColor: colors.border,
+        ...shadow.elevated,
         overflow: "hidden",
     },
     list: {
@@ -231,7 +228,7 @@ const styles = StyleSheet.create({
     },
     resultText: {
         fontSize: 14,
-        color: "#1E293B",
+        color: colors.text,
         flex: 1,
     },
     recentHeader: {
@@ -240,7 +237,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingTop: 12,
         paddingBottom: 6,
-        backgroundColor: "#F8FAFC",
+        backgroundColor: colors.inputBg,
         borderBottomWidth: 1,
         borderBottomColor: "#F1F5F9",
     },
@@ -250,7 +247,7 @@ const styles = StyleSheet.create({
     recentTitle: {
         fontSize: 12,
         fontWeight: "700",
-        color: "#64748B",
+        color: colors.textSecondary,
         textTransform: "uppercase",
         letterSpacing: 0.5,
     },
@@ -265,6 +262,6 @@ const styles = StyleSheet.create({
     chooseOnMapText: {
         fontSize: 14,
         fontWeight: 'bold',
-        color: '#4F46E5',
+        color: colors.primary,
     },
 });

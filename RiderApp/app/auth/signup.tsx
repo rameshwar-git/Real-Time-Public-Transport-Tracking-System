@@ -237,7 +237,7 @@ const SignUpScreen: React.FC = () => {
                     mode="date"
                     maximumDate={new Date()}
                     display="default"
-                    onChange={(event, selectedDate) => {
+                    onChange={(_, selectedDate) => {
                       setShowDatePicker(false);
                       if (selectedDate) {
                         setDate(selectedDate);

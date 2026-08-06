@@ -1,11 +1,15 @@
-import { connectedUsers, userLocations, PROXIMITY_COMPLETION_RADIUS_KM, emitToUser } from '../connectionManager';
+import { userLocations, PROXIMITY_COMPLETION_RADIUS_KM, emitToUser } from '../connectionManager';
+import { TripModel } from '@/models/trip/TripModel';
+import { getDistance } from '@/utils/geometry';
+import { restoreSeat } from '../utils/seats';
+import { broadcastDriverLocationToPassengers } from '../broadcastLocation';
 
 /**
  * Registers the `update-location` socket event.
  * Stores coords in memory, broadcasts driver location to passenger,
  * and runs proximity-based auto-complete checks.
  */
-export function registerLocationHandler(io: any, socket: any, userId: string) {
+export function registerLocationHandler(io: any, socket: any, _userId: string) {
 
     socket.on("update-location", async (data: any) => {
         const { userId, currentLocation } = data;
@@ -18,27 +22,20 @@ export function registerLocationHandler(io: any, socket: any, userId: string) {
         });
 
         try {
-            const { TripModel } = require('@/models/trip/TripModel');
-            const { getDistance } = require('@/utils/geometry');
+            // --- Broadcast driver location (with live seats) to every passenger on the shared vehicle ---
+            await broadcastDriverLocationToPassengers(io, userId, currentLocation);
 
-            // --- Broadcast driver location to passenger ---
-            const activeTrip = await TripModel.findOne({
+            // --- Per-trip proximity auto-complete (driver & its passenger > 40 m apart) ---
+            const activeTrips = await TripModel.find({
                 driverId: userId,
                 status: { $in: ['scheduled', 'in_progress'] }
             });
 
-            if (activeTrip) {
-                const passengerSocketId = connectedUsers.get(activeTrip.passengerId.toString());
-                if (passengerSocketId) {
-                    io.to(passengerSocketId).emit("driver-location-updated", {
-                        driverId: userId,
-                        currentLocation
-                    });
-                }
+            for (const activeTrip of activeTrips) {
+                const passengerId = activeTrip.passengerId.toString();
 
-                // --- Auto-complete trip when driver & passenger are > 40 m apart ---
                 if (activeTrip.status === 'in_progress') {
-                    const passengerLocation = userLocations.get(activeTrip.passengerId.toString());
+                    const passengerLocation = userLocations.get(passengerId);
 
                     if (passengerLocation) {
                         const distanceKm = getDistance(
@@ -60,16 +57,11 @@ export function registerLocationHandler(io: any, socket: any, userId: string) {
                             activeTrip.endDate = new Date();
                             await activeTrip.save();
 
-                            // Restore vehicle seat
-                            const VehicleModel = require('@/models/vehicles/VehicleModel').default;
-                            const vehicle = await VehicleModel.findById(activeTrip.vehicleId);
-                            if (vehicle) {
-                                const currentSeats = vehicle.availableSeats !== undefined ? vehicle.availableSeats : vehicle.capacity;
-                                await VehicleModel.findByIdAndUpdate(activeTrip.vehicleId, { availableSeats: currentSeats + 1 });
-                            }
+                            // Restore the exact number of seats this passenger booked
+                            await restoreSeat(activeTrip.vehicleId, activeTrip.seatsRequested ?? 1);
 
                             // Notify passenger
-                            emitToUser(io, activeTrip.passengerId.toString(), "trip-completed", {
+                            emitToUser(io, passengerId, "trip-completed", {
                                 tripId: activeTrip._id,
                                 autoCompleted: true,
                                 reason: 'proximity'

@@ -1,10 +1,13 @@
 import { Request, Response } from 'express';
 import DriverModel from '@/models/users/UserDriverModel';
+import PassengerModel from '@/models/users/UserPassengerModel';
 import VehicleModel from '@/models/vehicles/VehicleModel';
+import DriverLocationModel from '@/models/location/DriverLocation';
 import { TripModel } from '@/models/trip/TripModel';
 import { createDriverLocation } from '@/controllers/location/LocationController';
 import { createVehicle } from '@/controllers/vehicle/VehicleController';
-import { calculateFare } from '@/utils/geometry';
+import { fareFor } from '@/utils/geometry';
+import { driverAvgRating } from '@/utils/rating';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { AuthRequest } from "@/middleware/verifyToken";
@@ -86,7 +89,7 @@ export const setDriverVehicle = async (req: Request, res: Response) => {
         if (!driverId) {
             return res.status(400).json({ error: "DriverId is required" });
         }
-        const driver = await VehicleModel.findOneAndUpdate({ driverId }, { ...req.body, timestamp: new Date() });
+        await VehicleModel.findOneAndUpdate({ driverId }, { ...req.body, timestamp: new Date() });
         res.status(200).json({ 'Status': 'SUCCESS' });
     } catch (err: any) {
         res.status(500).json({ 'Status': 'FAILED' });
@@ -135,24 +138,41 @@ export const getDriverEarnings = async (req: AuthRequest, res: Response) => {
             trip.endDate && new Date(trip.endDate) >= weekAgo
         );
 
-        const weeklyEarnings = weeklyTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
-        const totalEarnings = completedTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
+        const weeklyEarnings = weeklyTrips.reduce((sum, trip) => sum + fareFor(trip), 0);
+        const totalEarnings = completedTrips.reduce((sum, trip) => sum + fareFor(trip), 0);
+
+        // Today's earnings only (completed trips that ended from local midnight onward).
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEarnings = completedTrips
+            .filter(trip => trip.endDate && new Date(trip.endDate) >= todayStart)
+            .reduce((sum, trip) => sum + fareFor(trip), 0);
 
         const lastWeekTrips = completedTrips.filter(trip => {
             const twoWeeksAgo = new Date(weekAgo.getTime() - 7 * 24 * 60 * 60 * 1000);
             return trip.endDate && new Date(trip.endDate) < weekAgo && new Date(trip.endDate) >= twoWeeksAgo;
         });
-        const lastWeekEarnings = lastWeekTrips.reduce((sum, trip) => sum + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0)), 0);
+        const lastWeekEarnings = lastWeekTrips.reduce((sum, trip) => sum + fareFor(trip), 0);
         const weeklyChange = lastWeekEarnings > 0
             ? ((weeklyEarnings - lastWeekEarnings) / lastWeekEarnings * 100).toFixed(1)
             : 0;
 
+        // Driver's average rating (given by passengers), drives matching priority.
+        let rating: number | null = null;
+        try {
+            rating = await driverAvgRating(driverId);
+        } catch (err) {
+            console.error("Error loading driver rating:", err);
+        }
+
         return res.status(200).json({
             totalEarnings: Number(totalEarnings.toFixed(2)),
+            todayEarnings: Number(todayEarnings.toFixed(2)),
             weeklyEarnings: Number(weeklyEarnings.toFixed(2)),
             weeklyChange: Number(weeklyChange),
             completedRides: completedTrips.length,
-            acceptanceRate
+            acceptanceRate,
+            rating
         });
     } catch (err: any) {
         return res.status(500).json({ error: err.message });
@@ -189,7 +209,7 @@ export const getWeeklyEarnings = async (req: AuthRequest, res: Response) => {
             if (trip.endDate) {
                 const tripDate = new Date(trip.endDate);
                 const dayName = dayNames[tripDate.getDay()];
-                dailyEarnings[dayName] = (dailyEarnings[dayName] || 0) + (trip.fare !== undefined ? trip.fare : calculateFare(trip.estimatedDistance || 0));
+                dailyEarnings[dayName] = (dailyEarnings[dayName] || 0) + fareFor(trip);
             }
         });
 
@@ -215,7 +235,6 @@ export const getDriverProfile = async (req: AuthRequest, res: Response) => {
 
         const vehicle = await VehicleModel.findOne({ driverId }).lean();
 
-        const DriverLocationModel = require('@/models/location/DriverLocation').default;
         const driverLocation = await DriverLocationModel.findOne({ userId: driverId }).lean();
         const lastDestination = driverLocation?.destination || null;
 
@@ -272,13 +291,137 @@ export const getActiveDriverTrips = async (req: AuthRequest, res: Response) => {
             origin: trip.startLocation,
             destination: trip.destination,
             status: trip.status,
-            estimatedDistance: (trip as any).estimatedDistance,
-            estimatedDuration: (trip as any).estimatedDuration,
-            fare: (trip as any).fare !== undefined ? (trip as any).fare : calculateFare((trip as any).estimatedDistance || 0)
+            estimatedDistance: trip.estimatedDistance,
+            estimatedDuration: trip.estimatedDuration,
+            fare: fareFor(trip)
         }));
 
         return res.status(200).json(formattedTrips);
     } catch (err: any) {
         return res.status(500).json({ error: err.message });
     }
+};
+
+//Get Driven Ride History (past / completed trips)
+export const getDriverRideHistory = async (req: AuthRequest, res: Response) => {
+  try {
+    const driverId = req.user!.id;
+    if (!driverId) {
+      return res.status(400).json({ error: 'Driver ID is required' });
+    }
+
+    const trips = await TripModel.find({ driverId })
+      .sort({ startDate: -1 })
+      .limit(100)
+      .lean();
+
+    const rides = await Promise.all(trips.map(async (trip) => {
+      let passengerName = trip.passengerName;
+      if (!passengerName) {
+        const passenger = await PassengerModel.findById(trip.passengerId).lean();
+        passengerName = passenger ? passenger.name : 'Passenger';
+      }
+      return {
+        id: trip._id,
+        passengerId: trip.passengerId,
+        passengerName: passengerName || 'Passenger',
+        from: trip.startLocation,
+        to: trip.destination,
+        fromName: trip.startLocation?.description,
+        toName: trip.destination?.description,
+        distance: trip.estimatedDistance || 0,
+        duration: trip.estimatedDuration || 0,
+        fare: fareFor(trip),
+        status: trip.status,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        rating: trip.rating || null,
+      };
+    }));
+
+    return res.status(200).json(rides);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+//Get Detailed Earnings / Trip Report
+export const getDriverReports = async (req: AuthRequest, res: Response) => {
+  try {
+    const driverId = req.user!.id;
+    if (!driverId) {
+      return res.status(400).json({ error: 'Driver ID is required' });
+    }
+
+    const completedTrips = await TripModel.find({
+      driverId,
+      status: 'completed',
+    }).lean();
+
+    const totalEarnings = completedTrips.reduce(
+      (sum, trip) => sum + fareFor(trip),
+      0
+    );
+    const totalTrips = completedTrips.length;
+    const avgFare = totalTrips > 0 ? totalEarnings / totalTrips : 0;
+    const totalDistance = completedTrips.reduce(
+      (sum, trip) => sum + (trip.estimatedDistance || 0),
+      0
+    );
+
+    // Monthly breakdown for the last 6 months
+    const now = new Date();
+    const months: { label: string; earnings: number; trips: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        earnings: 0,
+        trips: 0,
+      });
+    }
+
+    completedTrips.forEach((trip) => {
+      const end = trip.endDate ? new Date(trip.endDate) : new Date();
+      const idx = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 5;
+      if (idx >= 0 && idx <= 5) {
+        months[idx].earnings += fareFor(trip);
+        months[idx].trips += 1;
+      }
+    });
+
+    // Best day (day of week) by earnings
+    const dayTotals: { [key: string]: number } = {};
+    const dayCounts: { [key: string]: number } = {};
+    completedTrips.forEach((trip) => {
+      const end = trip.endDate ? new Date(trip.endDate) : new Date();
+      const dayName = end.toLocaleDateString('en-US', { weekday: 'short' });
+      dayTotals[dayName] = (dayTotals[dayName] || 0) + fareFor(trip);
+      dayCounts[dayName] = (dayCounts[dayName] || 0) + 1;
+    });
+    let topDay = 'N/A';
+    let topDayEarnings = 0;
+    Object.entries(dayTotals).forEach(([day, amount]) => {
+      if (amount > topDayEarnings) {
+        topDayEarnings = amount;
+        topDay = day;
+      }
+    });
+
+    return res.status(200).json({
+      totalEarnings: Number(totalEarnings.toFixed(2)),
+      totalTrips,
+      avgFare: Number(avgFare.toFixed(2)),
+      totalDistance: Number(totalDistance.toFixed(2)),
+      topDay,
+      topDayEarnings: Number(topDayEarnings.toFixed(2)),
+      monthBreakdown: months.map((m) => ({
+        ...m,
+        earnings: Number(m.earnings.toFixed(2)),
+      })),
+      dayCounts,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
 };

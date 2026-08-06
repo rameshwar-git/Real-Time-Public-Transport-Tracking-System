@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import { getCurrentLocation } from "@/services/locationServices";
 import { updateLocation } from "@/services/apiService";
+import { startBackgroundLocation, stopBackgroundLocation } from "@/services/backgroundLocation";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getToken } from "@/services/storageService";
 import { socket } from "@/services/socket";
@@ -11,7 +12,6 @@ let globalLocationInterval: any = null;
 let globalLastStatus: string | null = null;
 
 export const useLocationSharing = (userId: string | null, onLocationUpdate?: (coords: { latitude: number, longitude: number }) => void) => {
-    const hookId = useRef(Math.random().toString(36).substring(7));
     const lastLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
     const lastStatusRef = useRef<string | null>(null);
     const lastDestinationRef = useRef<any>(null);
@@ -73,7 +73,7 @@ export const useLocationSharing = (userId: string | null, onLocationUpdate?: (co
                     globalLastStatus = currentStatus; // Sync to global
                     console.log(`Sending location update:`, { coords, destination, status: currentStatus });
 
-                    await updateLocation(userId!, coords, destination, locationId || undefined, token, currentStatus);
+                    await updateLocation(coords, destination, locationId || undefined, token, currentStatus);
 
                     // Real-time Socket Broadcast
                     if (socket.connected) {
@@ -93,9 +93,18 @@ export const useLocationSharing = (userId: string | null, onLocationUpdate?: (co
 
         // 5-second polling (synchronously assign pointer to prevent multiple concurrent timers)
         globalLocationInterval = setInterval(updateFn, 5000);
+
+        // Keep sharing while the driver app is backgrounded / closed (on duty only).
+        if (status && status !== 'inactive') {
+            const token = await getToken();
+            startBackgroundLocation({ userId, token, destination, status });
+        }
     };
 
     const stopSharing = async (skipDbUpdate = false) => {
+
+        // Stop background location sharing regardless of the DB-update path.
+        stopBackgroundLocation();
 
         // Synchronously clear interval if it exists
         if (globalLocationInterval) {
@@ -127,7 +136,7 @@ export const useLocationSharing = (userId: string | null, onLocationUpdate?: (co
             const loc = await getCurrentLocation();
             if (loc) {
                 const coords = { latitude: loc.latitude, longitude: loc.longitude };
-                await updateLocation(userId, coords, null, locationId || undefined, token, 'inactive');
+                await updateLocation(coords, null, locationId || undefined, token, 'inactive');
                 if (socket.connected) {
                     socket.emit("update-location", {
                         userId,
