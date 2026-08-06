@@ -48,8 +48,8 @@ export function registerTripHandlers(io: any, socket: any, userId: string) {
             trip.endDate = new Date();
             await trip.save();
 
-            // Restore seat
-            await restoreSeat(trip.vehicleId);
+            // Restore the exact number of seats this passenger booked
+            await restoreSeat(trip.vehicleId, trip.seatsRequested ?? 1);
 
             emitToUser(io, trip.passengerId.toString(), "trip-completed", { tripId });
         }
@@ -69,9 +69,9 @@ export function registerTripHandlers(io: any, socket: any, userId: string) {
             trip.endDate = new Date();
             await trip.save();
 
-            // Restore seat
+            // Restore the exact number of seats this passenger booked
             if (trip.vehicleId) {
-                await restoreSeat(trip.vehicleId);
+                await restoreSeat(trip.vehicleId, trip.seatsRequested ?? 1);
             }
 
             // Notify both parties

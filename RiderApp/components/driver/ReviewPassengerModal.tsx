@@ -27,9 +27,12 @@ export const ReviewPassengerModal = ({ trip, onDismiss }: ReviewPassengerModalPr
         setSubmitting(true);
         setError(null);
         try {
-            await ratePassenger(trip.tripId, rating);
-            // Submit directly — close the card without any confirmation popup.
-            onDismiss(trip);
+            const result = await ratePassenger(trip.tripId, rating);
+            // "already-rated" means the same trip was reviewed before — still a success.
+            if (result === "already-rated" || result) {
+                // Submit directly — close the card without any confirmation popup.
+                onDismiss(trip);
+            }
         } catch (err) {
             setError('Failed to submit rating. Please try again.');
         } finally {

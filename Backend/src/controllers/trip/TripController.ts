@@ -150,13 +150,23 @@ export const rateDriver = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ error: validationError });
         }
 
-        const trip = await TripModel.findOne({ _id: tripId, passengerId });
-        if (!trip) {
-            return res.status(404).json({ error: 'Trip not found for this passenger' });
-        }
+        // Atomically set the rating ONLY if it hasn't been set yet — this enforces
+        // one review per trip per direction (a passenger can't rate the same driver
+        // many times and keep skewing the driver's running average), and is safe
+        // against concurrent duplicate submits.
+        const trip = await TripModel.findOneAndUpdate(
+            { _id: tripId, passengerId, driverRating: { $exists: false } },
+            { $set: { driverRating: Math.round(rating) } },
+            { new: true }
+        );
 
-        trip.driverRating = Math.round(rating);
-        await trip.save();
+        if (!trip) {
+            const owned = await TripModel.exists({ _id: tripId, passengerId });
+            if (!owned) {
+                return res.status(404).json({ error: 'Trip not found for this passenger' });
+            }
+            return res.status(400).json({ error: 'You have already rated this driver for this trip' });
+        }
 
         return res.status(200).json({ Status: 'SUCCESS', driverRating: trip.driverRating });
     } catch (err: any) {
@@ -176,13 +186,23 @@ export const ratePassenger = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ error: validationError });
         }
 
-        const trip = await TripModel.findOne({ _id: tripId, driverId });
-        if (!trip) {
-            return res.status(404).json({ error: 'Trip not found for this driver' });
-        }
+        // Atomically set the rating ONLY if it hasn't been set yet — this enforces
+        // one review per trip per direction (a driver can't rate the same passenger
+        // many times and keep skewing the passenger's running average), and is safe
+        // against concurrent duplicate submits.
+        const trip = await TripModel.findOneAndUpdate(
+            { _id: tripId, driverId, rating: { $exists: false } },
+            { $set: { rating: Math.round(rating) } },
+            { new: true }
+        );
 
-        trip.rating = Math.round(rating);
-        await trip.save();
+        if (!trip) {
+            const owned = await TripModel.exists({ _id: tripId, driverId });
+            if (!owned) {
+                return res.status(404).json({ error: 'Trip not found for this driver' });
+            }
+            return res.status(400).json({ error: 'You have already rated this passenger for this trip' });
+        }
 
         return res.status(200).json({ Status: 'SUCCESS', rating: trip.rating });
     } catch (err: any) {

@@ -54,8 +54,8 @@ export function registerDisconnectHandler(io: any, socket: any, userId: string) 
                                 trip.endDate = new Date();
                                 await trip.save();
 
-                                // Restore vehicle seat
-                                await restoreSeat(trip.vehicleId);
+                                // Restore the exact number of seats this passenger booked
+                                await restoreSeat(trip.vehicleId, trip.seatsRequested ?? 1);
 
                                 // Notify passenger if connected
                                 emitToUser(io, trip.passengerId.toString(), "trip-completed", { tripId: trip._id, autoCompleted: true });

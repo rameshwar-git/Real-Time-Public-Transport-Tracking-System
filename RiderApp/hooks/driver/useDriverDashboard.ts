@@ -156,7 +156,10 @@ export function useDriverDashboard() {
             driverId: userId,
             origin: incomingRequest.origin,
             destination: incomingRequest.destination,
-            fare: incomingRequest.fare
+            fare: incomingRequest.fare,
+            // Echo the seat count the passenger asked for so the vehicle decrements
+            // exactly that many seats and can reject if they were booked out meanwhile.
+            seats: Math.max(1, Number(incomingRequest.seats) || 1)
         });
 
         setIncomingRequest(null);

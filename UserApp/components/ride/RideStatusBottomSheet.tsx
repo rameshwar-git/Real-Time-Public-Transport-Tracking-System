@@ -22,6 +22,8 @@ interface RideStatusBottomSheetProps {
     origin?: { latitude: number; longitude: number } | null;
     destination?: { latitude: number; longitude: number } | null;
     routeDetails?: { distance: number; duration: number } | null;
+    /** Live available-seat count for the vehicle, streamed over the socket. */
+    availableSeats?: number | null;
 }
 
 export const RideStatusBottomSheet = ({
@@ -31,7 +33,8 @@ export const RideStatusBottomSheet = ({
     assignedDriverLocation,
     origin,
     destination,
-    routeDetails
+    routeDetails,
+    availableSeats
 }: RideStatusBottomSheetProps) => {
 
     const [isExpanded, setIsExpanded] = useState(true);
@@ -184,6 +187,16 @@ export const RideStatusBottomSheet = ({
                                     {driverDetails?.vehicleColor || 'Active'} {driverDetails?.vehicleModel || 'Vehicle'}
                                 </Text>
                             </View>
+
+                            {/* Live available seats */}
+                            {availableSeats != null && (
+                                <View style={[styles.vehicleDetailsBadge, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0', borderWidth: 1, marginBottom: 0 }]}>
+                                    <MaterialIcons name="event-seat" size={16} color="#059669" />
+                                    <Text style={[styles.vehicleModelText, { color: '#059669' }]}>
+                                        {availableSeats} seat{availableSeats !== 1 ? 's' : ''} left
+                                    </Text>
+                                </View>
+                            )}
 
                             {/* Fare badge */}
                             {driverDetails?.fare !== undefined && (

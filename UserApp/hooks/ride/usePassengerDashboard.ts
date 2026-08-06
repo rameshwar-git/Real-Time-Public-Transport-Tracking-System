@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Platform, Alert } from "react-native";
 import { useLiveLocations } from "@/hooks/location/useLiveLocations";
 import { useLocationSharing } from "@/hooks/location/useLocationSharing";
-import { getUserId } from "@/services/storageService";
+import { getUserId, getToken } from "@/services/storageService";
 import { requestPermission, reverseGeocode, getCurrentLocation } from "@/services/locationServices";
 import { socket } from "@/services/socket";
 import { getDistance } from "@/utils/geometry";
-import { getActiveTrip } from "@/services/apiService";
+import { getActiveTrip, findDrivers } from "@/services/apiService";
 import { useRideSocketEvents } from "@/hooks/ride/useRideSocketEvents";
 import { useRideRequestFlow } from "@/hooks/ride/useRideRequestFlow";
 import { upsertDriverLocation } from "@/utils/location";
@@ -38,6 +38,15 @@ export function usePassengerDashboard() {
     const [matchedDrivers, setMatchedDrivers] = useState<any[]>([]);
     const [currentDriverIndex, setCurrentDriverIndex] = useState<number>(0);
     const [selectedVehicleType, setSelectedVehicleType] = useState<'all' | 'tricycle' | 'bus'>('all');
+
+    // Number of seats this passenger wants (shared/public-transport booking).
+    const [seatsNeeded, setSeatsNeeded] = useState<number>(1);
+    // Live available-seat count for the accepted driver, streamed over the socket.
+    const [availableSeats, setAvailableSeats] = useState<number | null>(null);
+
+    // Shared vehicles heading this passenger's way, loaded once a destination is set so
+    // they can be browsed (with live seats) BEFORE the search begins, and board via tap.
+    const [browseDrivers, setBrowseDrivers] = useState<any[]>([]);
 
     const pendingDriversRef = useRef<any[]>([]);
     const currentDriverIndexRef = useRef<number>(0);
@@ -176,7 +185,37 @@ export function usePassengerDashboard() {
         fetchAddress();
     }, [origin]);
 
-    const { requestNextDriver, handleConfirmRide } = useRideRequestFlow({
+    // Pre-ride browse: while a destination is set (but nothing confirmed yet), load the
+    // shared vehicles going that way and keep their live seats fresh by re-polling.
+    useEffect(() => {
+        if (!origin || !destination || isConfirmed) {
+            setBrowseDrivers([]);
+            pendingDriversRef.current = [];
+            return;
+        }
+        let cancelled = false;
+        const load = async () => {
+            try {
+                const token = await getToken();
+                let drivers: any[] = await findDrivers(origin, destination, token as string);
+                if (selectedVehicleType !== 'all') {
+                    drivers = (drivers || []).filter(
+                        d => d.vehicleDetails?.vehicleType === selectedVehicleType
+                    );
+                }
+                if (cancelled) return;
+                setBrowseDrivers(drivers || []);
+                pendingDriversRef.current = drivers || [];
+            } catch (e) {
+                console.error("Browse load error:", e);
+            }
+        };
+        load();
+        const browseInterval = setInterval(load, 10000);
+        return () => { cancelled = true; clearInterval(browseInterval); };
+    }, [origin, destination, isConfirmed, selectedVehicleType, getToken]);
+
+    const { requestNextDriver, requestSpecificDriver, requestDriverAt, handleConfirmRide } = useRideRequestFlow({
         socket,
         userId,
         origin,
@@ -191,6 +230,7 @@ export function usePassengerDashboard() {
         setCurrentDriverIndex,
         selectedVehicleType,
         routeDetails,
+        seatsNeeded,
     });
 
     useRideSocketEvents({
@@ -212,6 +252,7 @@ export function usePassengerDashboard() {
         stopSharing,
         assignedDriverId,
         setLocations,
+        setAvailableSeats,
     });
 
     // --- Event Handlers ---
@@ -227,6 +268,7 @@ export function usePassengerDashboard() {
         setDestination(null);
         setDestinationText("");
         setRouteDetails(null);
+        setAvailableSeats(null);
     };
 
     const handleCancelSearch = () => {
@@ -368,6 +410,9 @@ export function usePassengerDashboard() {
         matchedDrivers,
         currentDriverIndex,
         selectedVehicleType,
+        seatsNeeded,
+        availableSeats,
+        browseDrivers,
         locations,
         assignedDriverId,
         mapComponents,
@@ -378,6 +423,7 @@ export function usePassengerDashboard() {
         setSelectedVehicleType,
         setIsChoosingOnMap,
         setRouteDetails,
+        setSeatsNeeded,
 
         // Derived
         assignedDriverLocation,
@@ -385,6 +431,8 @@ export function usePassengerDashboard() {
 
         // Handlers
         handleConfirmRide,
+        requestSpecificDriver,
+        requestDriverAt,
         handleCancelSearch,
         handleCancelTrip,
         handleDismissReceipt,

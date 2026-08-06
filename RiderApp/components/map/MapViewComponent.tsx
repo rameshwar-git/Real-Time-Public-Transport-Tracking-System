@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Platform, View, StyleSheet, Animated, TouchableOpacity } from "react-native";
 import { UserLocation } from "@/types/map";
 import { Region } from "react-native-maps";
@@ -52,8 +52,11 @@ export const MapViewComponent: React.FC<Props> = (
     }) => {
     const isLifted = useRef(false);
     const liftAnim = useRef(new Animated.Value(0)).current;
+    const didFitRouteRef = useRef(false);
 
-    if (!MapView || !mapRegion) return null;
+    // The driver's own live coordinate (from their shared location feed) plus whether
+    // they are mid-trip — used to follow their marker along the route.
+    const ownLocation = locations.find((u: any) => u.userId === currentUserId)?.currentLocation;
 
     const handleRegionChange = () => {
         if (!isLifted.current) {
@@ -96,6 +99,29 @@ export const MapViewComponent: React.FC<Props> = (
         }
     };
 
+    // Follow the driver's own marker along the route during an active trip, at a stable
+    // street-level zoom. Constant deltas mean the camera only pans (never re-zooms), so
+    // live location updates don't cause auto zoom in/out.
+    useEffect(() => {
+        const hasActiveTrip = Array.isArray(activeTrips) && activeTrips.some((t: any) =>
+            t.status === 'scheduled' || t.status === 'in_progress'
+        );
+        if (!hasActiveTrip || !ownLocation || !mapRef.current) return;
+        if (
+            typeof ownLocation.latitude !== 'number' ||
+            typeof ownLocation.longitude !== 'number' ||
+            isNaN(ownLocation.latitude) ||
+            isNaN(ownLocation.longitude)
+        ) return;
+        mapRef.current.animateToRegion(toGpsRegion({ latitude: ownLocation.latitude, longitude: ownLocation.longitude }), 800);
+    }, [ownLocation?.latitude, ownLocation?.longitude, activeTrips]);
+
+    // Re-arm the one-time route fit whenever a new route (origin/destination) starts,
+    // so each new trip gets its own context fit without re-fitting on live updates.
+    useEffect(() => {
+        didFitRouteRef.current = false;
+    }, [origin?.latitude, origin?.longitude, destination?.latitude, destination?.longitude]);
+
     // Reject 0,0 / NaN / null coords — prevents Google Maps NOT_FOUND errors
     const isValidCoord = (c: any): boolean =>
         c != null &&
@@ -104,6 +130,12 @@ export const MapViewComponent: React.FC<Props> = (
         !isNaN(c.latitude) &&
         !isNaN(c.longitude) &&
         !(c.latitude === 0 && c.longitude === 0);
+
+    if (!MapView || !mapRegion) {
+        // We still need to return null if components are missing,
+        // but we must ensure all hooks are declared before this point.
+        return null;
+    }
 
     return (
         <View style={{ flex: 1 }}>
@@ -194,6 +226,11 @@ export const MapViewComponent: React.FC<Props> = (
                         strokeColor="blue"
                         mode="DRIVING"
                         onReady={(result) => {
+                            // Fit to the route once for context; the follow effect above pans the
+                            // camera at constant zoom on subsequent location updates, so this must
+                            // not run repeatedly or it would cause auto zoom in/out.
+                            if (didFitRouteRef.current) return;
+                            didFitRouteRef.current = true;
                             mapRef.current?.fitToCoordinates(result.coordinates, {
                                 edgePadding: { top: 80, right: 60, bottom: 220, left: 60 },
                                 animated: true,

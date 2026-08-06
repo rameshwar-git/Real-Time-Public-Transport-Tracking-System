@@ -18,14 +18,26 @@ import { getSeats, takeSeat } from '../utils/seats';
 export function registerRideHandlers(io: any, socket: any, userId: string) {
 
     socket.on("request-ride", async (data: any) => {
-        const { passengerId, driverId, origin, destination, passengerFare } = data;
+        const { passengerId, driverId, origin, destination, passengerFare, seats } = data;
         const driverSocketId = connectedUsers.get(driverId);
 
         const vehicle = await VehicleModel.findOne({ driverId: driverId });
         const currentSeats = vehicle ? (vehicle.availableSeats ?? vehicle.capacity) ?? 0 : 0;
 
+        // Optional requested seat count (default 1). Reject when the vehicle lacks enough seats —
+        // a passenger must not overbook a shared/public-transport vehicle.
+        const seatsRequested = (Number(seats) > 0) ? Math.floor(Number(seats)) : 1;
         if (currentSeats <= 0) {
-            emitToUser(io, passengerId, "ride-rejected", { driverId, reason: "Driver is full" });
+            emitToUser(io, passengerId, "ride-rejected", { driverId, reason: "Driver is full", availableSeats: 0 });
+            return;
+        }
+        if (currentSeats < seatsRequested) {
+            emitToUser(io, passengerId, "ride-rejected", {
+                driverId,
+                reason: "Not enough seats",
+                seatsRequested,
+                availableSeats: currentSeats
+            });
             return;
         }
 
@@ -74,7 +86,8 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
                 estimatedDuration,
                 routeMatchPercentage,
                 fare,
-                passengerRating
+                passengerRating,
+                seats: seatsRequested
             });
         } else {
             console.log(`Driver ${driverId} not currently connected to sockets.`);
@@ -87,19 +100,35 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
     });
 
     socket.on("accept-ride", async (data: any) => {
-        let { passengerId, driverId, vehicleId, origin, destination, fare: driverPassedFare } = data;
+        let { passengerId, driverId, vehicleId, origin, destination, fare: driverPassedFare, seats } = data;
         const passengerSocketId = connectedUsers.get(passengerId);
         const driverSocketId = connectedUsers.get(driverId);
+
+        // Number of seats the passenger requested (echoed back by the driver on accept).
+        const seatsRequested = (Number(seats) > 0) ? Math.floor(Number(seats)) : 1;
 
         if (!vehicleId && driverId) {
             const vehicle = await VehicleModel.findOne({ driverId: driverId }).select('_id');
             if (vehicle) vehicleId = vehicle._id;
         }
 
-        // Decrement available seats
+        // Re-validate seats at accept time and decrement by the requested count.
+        // Reject if another booking drained the available seats in the meantime.
+        let availableAfter: number | null = null;
         if (vehicleId) {
             try {
-                await takeSeat(vehicleId);
+                const vehicle = await VehicleModel.findById(vehicleId);
+                const currentSeats = vehicle ? (vehicle.availableSeats ?? vehicle.capacity) ?? 0 : 0;
+                if (currentSeats < seatsRequested) {
+                    emitToUser(io, passengerId, "ride-rejected", {
+                        driverId,
+                        reason: "Not enough seats",
+                        seatsRequested,
+                        availableSeats: currentSeats
+                    });
+                    return;
+                }
+                availableAfter = await takeSeat(vehicleId, seatsRequested);
             } catch (error) {
                 console.error("Error decrementing seats", error);
             }
@@ -137,7 +166,8 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
             estimatedDistance,
             estimatedDuration,
             fare,
-            status: 'scheduled'
+            status: 'scheduled',
+            seatsRequested
         });
 
         if (passengerSocketId) {
@@ -154,7 +184,9 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
                 otp,
                 estimatedDistance,
                 estimatedDuration,
-                fare
+                fare,
+                seatsRequested,
+                availableSeats: availableAfter
             });
         }
 
@@ -168,7 +200,17 @@ export function registerRideHandlers(io: any, socket: any, userId: string) {
                 estimatedDistance,
                 estimatedDuration,
                 fare,
-                status: 'scheduled'
+                status: 'scheduled',
+                seatsRequested
+            });
+        }
+
+        // Push the fresh seat count to the booking passenger immediately so the ride
+        // view reflects the drop in real time (also streamed on every driver-location-updated).
+        if (passengerSocketId && availableAfter != null) {
+            io.to(passengerSocketId).emit("seats-updated", {
+                driverId,
+                availableSeats: availableAfter
             });
         }
     });

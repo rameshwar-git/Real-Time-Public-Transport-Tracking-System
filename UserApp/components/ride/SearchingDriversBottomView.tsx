@@ -25,12 +25,18 @@ interface SearchingDriversBottomViewProps {
     onCancel: () => void;
     drivers?: Driver[];
     currentDriverIndex?: number;
+    /** Tap a specific vehicle (e.g. one with enough seats) to request it directly. */
+    onSelectDriver?: (index: number) => void;
+    /** How many seats this passenger wants, shown against each driver's availability. */
+    seatsNeeded?: number;
 }
 
-export const SearchingDriversBottomView = ({ 
-    onCancel, 
-    drivers = [], 
-    currentDriverIndex = 0 
+export const SearchingDriversBottomView = ({
+    onCancel,
+    drivers = [],
+    currentDriverIndex = 0,
+    onSelectDriver,
+    seatsNeeded = 1
 }: SearchingDriversBottomViewProps) => {
     const hasDrivers = Array.isArray(drivers) && drivers.length > 0;
 
@@ -59,8 +65,8 @@ export const SearchingDriversBottomView = ({
             )}
 
             {hasDrivers ? (
-                <ScrollView 
-                    style={styles.listContainer} 
+                <ScrollView
+                    style={styles.listContainer}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.listContent}
                 >
@@ -68,15 +74,23 @@ export const SearchingDriversBottomView = ({
                         const isCurrent = idx === currentDriverIndex;
                         const isPassed = idx < currentDriverIndex;
                         const matchStyle = getMatchColor(driver.routeMatchPercentage || 0);
+                        const available = driver.availableSeats != null ? Number(driver.availableSeats) : 4;
+                        // Enough seats to fulfil this passenger's request?
+                        const hasEnoughSeats = available >= seatsNeeded;
+                        const canSelect = !!onSelectDriver;
+                        const Card = canSelect ? TouchableOpacity : View;
 
                         return (
-                            <View 
-                                key={driver.userId || idx} 
+                            <Card
+                                key={driver.userId || idx}
                                 style={[
-                                    styles.driverCard, 
+                                    styles.driverCard,
                                     isCurrent && styles.activeCard,
-                                    isPassed && styles.passedCard
+                                    isPassed && styles.passedCard,
+                                    canSelect && !isPassed && styles.selectableCard
                                 ]}
+                                activeOpacity={0.8}
+                                onPress={canSelect && !isPassed ? () => onSelectDriver!(idx) : undefined}
                             >
                                 <View style={styles.leftCol}>
                                     <View style={[styles.avatarCircle, isCurrent && styles.activeAvatarCircle]}>
@@ -89,11 +103,12 @@ export const SearchingDriversBottomView = ({
                                             {driver.driverDetails?.name || `Driver #${(driver.userId || '').slice(-4)}`}
                                         </Text>
                                         <Text style={styles.vehicleInfo}>
-                                            {driver.vehicleDetails?.color || ''} {driver.vehicleDetails?.vehicleModel || 'Vehicle'} 
+                                            {driver.vehicleDetails?.color || ''} {driver.vehicleDetails?.vehicleModel || 'Vehicle'}
                                             {driver.vehicleDetails?.vehicleNumber ? ` • ${driver.vehicleDetails.vehicleNumber}` : ''}
                                         </Text>
-                                        <Text style={styles.seatsInfo}>
-                                            Seats: {driver.availableSeats || 4} available
+                                        <Text style={[styles.seatsInfo, { color: hasEnoughSeats ? '#059669' : colors.textMuted }]}>
+                                            {available} seat{available !== 1 ? 's' : ''} available
+                                            {!hasEnoughSeats && ` — not enough for ${seatsNeeded} requested`}
                                         </Text>
                                     </View>
                                 </View>
@@ -110,7 +125,7 @@ export const SearchingDriversBottomView = ({
                                             {Math.round(driver.routeMatchPercentage || 0)}% Match
                                         </Text>
                                     </View>
-                                    
+
                                     <Text style={styles.distText}>
                                         {driver.pickupDist ? `${driver.pickupDist.toFixed(2)} km` : 'Nearby'}
                                     </Text>
@@ -130,8 +145,13 @@ export const SearchingDriversBottomView = ({
                                             <Text style={styles.statusTextQueue}>QUEUED</Text>
                                         </View>
                                     )}
+                                    {canSelect && !isCurrent && !isPassed && hasEnoughSeats && (
+                                        <View style={styles.pickBadge}>
+                                            <Text style={styles.pickText}>REQUEST THIS</Text>
+                                        </View>
+                                    )}
                                 </View>
-                            </View>
+                            </Card>
                         );
                     })}
                 </ScrollView>
@@ -228,6 +248,23 @@ const styles = StyleSheet.create({
         backgroundColor: '#FAFAFA',
         opacity: 0.6,
         borderColor: colors.border,
+    },
+    selectableCard: {
+        borderColor: colors.border,
+        borderWidth: 1.5,
+    },
+    pickBadge: {
+        marginTop: 6,
+        backgroundColor: colors.primary,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    pickText: {
+        color: '#FFFFFF',
+        fontSize: 9,
+        fontWeight: 'bold',
+        letterSpacing: 0.5,
     },
     leftCol: {
         flexDirection: 'row',

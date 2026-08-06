@@ -66,6 +66,7 @@ export const IncomingRequestCard = ({ onAccept, onReject, incomingRequest }: Inc
                         <Text style={styles.estimateText}>
                             📏 {formatKm(incomingRequest.estimatedDistance)}  •  ⏱️ {incomingRequest.estimatedDuration} min
                             {incomingRequest.fare !== undefined && `  •  💰 ${formatFare(incomingRequest.fare)}`}
+                            {incomingRequest.seats !== undefined && `  •  🪑 ${Math.max(1, Number(incomingRequest.seats) || 1)} seat(s)`}
                         </Text>
                     </View>
                 </View>

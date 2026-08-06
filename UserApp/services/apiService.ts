@@ -114,7 +114,15 @@ export const rateDriver = async (tripId: string, rating: number) => {
         method: "PUT",
         body: JSON.stringify({ rating }),
     });
-    if (!res.ok) throw new Error("Failed to submit rating");
+    if (!res.ok) {
+        // A 400 "already rated" means the driver has already been reviewed for this
+        // trip — treat it as already-submitted rather than an error.
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 400 && /already rated/i.test(String(data?.error || ""))) {
+            return "already-rated";
+        }
+        throw new Error("Failed to submit rating");
+    }
     return await res.json();
 };
 

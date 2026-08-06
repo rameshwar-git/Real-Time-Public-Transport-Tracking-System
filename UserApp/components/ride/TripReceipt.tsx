@@ -30,8 +30,11 @@ export const TripReceipt = ({ driverDetails, origin, destination, onDismiss, tri
         if (!tripId) return;
         setSubmitting(true);
         try {
-            await rateDriver(tripId, rating);
-            setSubmitted(true);
+            const result = await rateDriver(tripId, rating);
+            // "already-rated" means the same trip was reviewed before — still a success.
+            if (result === "already-rated" || result) {
+                setSubmitted(true);
+            }
         } catch (err) {
             Alert.alert('Error', 'Failed to submit rating');
         } finally {

@@ -60,8 +60,10 @@ export const MapViewComponent: React.FC<Props> = (
     const liftAnim = useRef(new Animated.Value(0)).current;
     const isAnimatingRef = useRef(false);
 
-    // Auto-follow the assigned vehicle at a street-level zoom while the trip is active,
-    // re-centering on each live driver-location update so the vehicle is tracked in real time.
+    // Follow the assigned vehicle at a stable street-level zoom while the trip is active.
+    // Each live driver-location update re-centers on the vehicle along the route WITHOUT
+    // changing the zoom (toGpsRegion keeps constant deltas = pure pan), so the map never
+    // auto zooms in/out as coordinates stream in.
     useEffect(() => {
         const isTracking =
             isConfirmed &&
@@ -78,10 +80,11 @@ export const MapViewComponent: React.FC<Props> = (
 
         isAnimatingRef.current = true;
         mapRef.current.animateToRegion(toGpsRegion(assignedDriverLocation), 800);
-        setTimeout(() => {
+        const release = setTimeout(() => {
             isAnimatingRef.current = false;
         }, 900);
-    }, [assignedDriverLocation, isConfirmed, tripStatus]);
+        return () => clearTimeout(release);
+    }, [assignedDriverLocation?.latitude, assignedDriverLocation?.longitude, isConfirmed, tripStatus]);
 
     if (!MapView || !mapRegion) return null;
 
@@ -193,14 +196,11 @@ export const MapViewComponent: React.FC<Props> = (
                         precision="high"
                         timePrecision="now"
                         onReady={(result) => {
-                            // Always fit map to the live route so it's visible on reopen
-                            if (result.coordinates?.length > 1) {
-                                mapRef.current?.fitToCoordinates(result.coordinates, {
-                                    edgePadding: { top: 80, right: 60, bottom: 300, left: 60 },
-                                    animated: true,
-                                    zoom: 20,
-                                });
-                            }
+                            // NOTE: no fitToCoordinates here on purpose. The auto-follow effect
+                            // above owns the camera — it pans at a constant street zoom to keep the
+                            // vehicle tracked. Fitting here would zoom out to the whole route on
+                            // every 10s route refresh and fight the follow, causing the map to
+                            // auto zoom in and out. We only report the live route distance/duration.
                             if (onRouteDetailsUpdated) {
                                 onRouteDetailsUpdated({
                                     distance: result.distance,

@@ -9,6 +9,7 @@ export interface ExtendedTrip extends Trip {
     estimatedDistance?: number;
     fare?: number;
     driverRating?: number; // Passenger's rating of the driver
+    seatsRequested?: number; // Seats booked by this passenger in a shared/public-transport vehicle
 }
 
 const TripSchema = new Schema<ExtendedTrip>({
@@ -32,7 +33,8 @@ const TripSchema = new Schema<ExtendedTrip>({
     driverRating: { type: Number, min: 1, max: 5 },
     estimatedDuration: { type: Number },
     estimatedDistance: { type: Number },
-    fare: { type: Number }
+    fare: { type: Number },
+    seatsRequested: { type: Number, default: 1 }
 });
 
 export const TripModel = model<ExtendedTrip>('Trip', TripSchema);

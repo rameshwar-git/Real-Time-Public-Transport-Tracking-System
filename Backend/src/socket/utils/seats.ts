@@ -16,20 +16,35 @@ export const getSeats = async (vehicleId: any): Promise<number> => {
     return seatCount(vehicle);
 };
 
-/** Decrement the available seat count of a vehicle by one, if any seats remain. */
-export const takeSeat = async (vehicleId: any): Promise<void> => {
-    const vehicle = await VehicleModel.findById(vehicleId);
-    if (!vehicle) return;
-    const currentSeats = seatCount(vehicle);
-    if (currentSeats > 0) {
-        await VehicleModel.findByIdAndUpdate(vehicleId, { availableSeats: currentSeats - 1 });
-    }
+/** Read only the stored available-seats field (no capacity fallback; null when unset). */
+export const getStoredSeats = async (vehicleId: any): Promise<number | null> => {
+    const vehicle = await VehicleModel.findById(vehicleId).lean();
+    if (!vehicle) return null;
+    return vehicle.availableSeats != null ? Number(vehicle.availableSeats) : null;
 };
 
-/** Increment the available seat count of a vehicle by one (after a trip ends/cancels). */
-export const restoreSeat = async (vehicleId: any): Promise<void> => {
+/**
+ * Decrement a vehicle's available seat count by `count` (default 1), if enough
+ * seats remain. Returns the new available-seat count, or null when the vehicle
+ * is missing / there are insufficient seats (nothing is changed).
+ */
+export const takeSeat = async (vehicleId: any, count: number = 1): Promise<number | null> => {
     const vehicle = await VehicleModel.findById(vehicleId);
-    if (!vehicle) return;
+    if (!vehicle) return null;
     const currentSeats = seatCount(vehicle);
-    await VehicleModel.findByIdAndUpdate(vehicleId, { availableSeats: currentSeats + 1 });
+    const requested = Math.max(1, Math.floor(count) || 1);
+    if (currentSeats < requested) return null;
+    const newSeats = currentSeats - requested;
+    await VehicleModel.findByIdAndUpdate(vehicleId, { availableSeats: newSeats });
+    return newSeats;
+};
+
+/** Increment the available seat count of a vehicle by `count` (default 1, for legacy callers). */
+export const restoreSeat = async (vehicleId: any, count: number = 1): Promise<number | null> => {
+    const vehicle = await VehicleModel.findById(vehicleId);
+    if (!vehicle) return null;
+    const currentSeats = seatCount(vehicle);
+    const newSeats = currentSeats + (Math.max(1, Math.floor(count) || 1));
+    await VehicleModel.findByIdAndUpdate(vehicleId, { availableSeats: newSeats });
+    return newSeats;
 };
