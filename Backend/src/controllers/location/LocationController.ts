@@ -6,6 +6,8 @@ import PassengerModel from '@/models/users/UserPassengerModel';
 import VehicleModel from '@/models/vehicles/VehicleModel';
 import { AuthRequest } from "@/middleware/verifyToken";
 import { getNearestNUsers } from '@/utils/geometry';
+import { socketIO } from '@/socket/connectionManager';
+import { broadcastDriverLocationToPassengers } from '@/socket/broadcastLocation';
 
 // Creating new location entry specifically for Passengers
 export const createPassengerLocation = async (req: Request, res: Response) => {
@@ -88,6 +90,17 @@ export const updateDriverLocation = async (req: AuthRequest, res: Response) => {
             { ...locationData, userId, vehicleId, timestamp: new Date() },
             { new: true }
         );
+
+        // When a driver updates via REST (e.g. from the background task, which has no live
+        // socket), still push the fresh position to their onboarded passengers in real time,
+        // matching what the socket `update-location` handler does.
+        const coords = locationData?.currentLocation as { latitude: number; longitude: number } | undefined;
+        if (socketIO && coords?.latitude && coords?.longitude) {
+            broadcastDriverLocationToPassengers(socketIO, userId, coords).catch((err) =>
+                console.error('Error broadcasting driver location from REST update:', err)
+            );
+        }
+
         res.status(200).json({ 'Status': 'SUCCESS' });
     } catch (err: any) {
         res.status(500).json({ 'Status': 'FAILED' });

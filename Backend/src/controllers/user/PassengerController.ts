@@ -208,7 +208,8 @@ export const getRecentRides = async (req: AuthRequest, res: Response) => {
           minute: '2-digit'
         }),
         fare: `₹${calculatedFare.toFixed(2)}`,
-        rating: trip.rating || 5
+        // Report the actual received rating (0 = not yet reviewed) instead of fabricating a 5.
+        rating: trip.rating ?? 0
       };
     });
 

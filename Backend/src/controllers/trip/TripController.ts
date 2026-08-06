@@ -127,48 +127,40 @@ export const findDrivers = async (req: Request, res: Response) => {
     }
 };
 
-// Validate rating input; returns an error message string or null when valid
-const validateRatingInput = (tripId: any, rating: any): string | null => {
-    if (!tripId) {
-        return 'Trip ID is required';
-    }
-    if (typeof rating !== 'number' || rating < 1 || rating > 5) {
-        return 'Rating must be a number between 1 and 5';
-    }
-    return null;
-};
-
 // Passenger rates a driver (sets driverRating on the trip)
 export const rateDriver = async (req: AuthRequest, res: Response) => {
     try {
         const passengerId = req.user!.id;
         const { tripId } = req.params;
-        const { rating } = req.body;
+        const rating = Number(req.body?.rating);
 
-        const validationError = validateRatingInput(tripId, rating);
-        if (validationError) {
-            return res.status(400).json({ error: validationError });
+        if (!tripId) {
+            return res.status(400).json({ error: 'Trip ID is required' });
+        }
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+            return res.status(400).json({ error: 'Rating must be an integer between 1 and 5' });
         }
 
         // Atomically set the rating ONLY if it hasn't been set yet — this enforces
-        // one review per trip per direction (a passenger can't rate the same driver
-        // many times and keep skewing the driver's running average), and is safe
-        // against concurrent duplicate submits.
+        // one review per trip per direction (a passenger can't keep re-rating the same
+        // driver and skewing the average), and is safe against concurrent duplicate submits.
         const trip = await TripModel.findOneAndUpdate(
             { _id: tripId, passengerId, driverRating: { $exists: false } },
-            { $set: { driverRating: Math.round(rating) } },
+            { $set: { driverRating: rating } },
             { new: true }
         );
 
-        if (!trip) {
-            const owned = await TripModel.exists({ _id: tripId, passengerId });
-            if (!owned) {
-                return res.status(404).json({ error: 'Trip not found for this passenger' });
-            }
-            return res.status(400).json({ error: 'You have already rated this driver for this trip' });
+        if (trip) {
+            return res.status(200).json({ Status: 'SUCCESS', driverRating: trip.driverRating });
         }
 
-        return res.status(200).json({ Status: 'SUCCESS', driverRating: trip.driverRating });
+        // Already reviewed (or trip lookup raced) — return the existing value as a clean
+        // success so a retry never surfaces as an error and the average is never skewed.
+        const existing = await TripModel.findOne({ _id: tripId, passengerId }).select('driverRating');
+        if (!existing) {
+            return res.status(404).json({ error: 'Trip not found for this passenger' });
+        }
+        return res.status(200).json({ Status: 'SUCCESS', driverRating: existing.driverRating, alreadyRated: true });
     } catch (err: any) {
         return res.status(500).json({ Status: 'FAILED', error: err.message });
     }
@@ -179,32 +171,33 @@ export const ratePassenger = async (req: AuthRequest, res: Response) => {
     try {
         const driverId = req.user!.id;
         const { tripId } = req.params;
-        const { rating } = req.body;
+        const rating = Number(req.body?.rating);
 
-        const validationError = validateRatingInput(tripId, rating);
-        if (validationError) {
-            return res.status(400).json({ error: validationError });
+        if (!tripId) {
+            return res.status(400).json({ error: 'Trip ID is required' });
+        }
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+            return res.status(400).json({ error: 'Rating must be an integer between 1 and 5' });
         }
 
-        // Atomically set the rating ONLY if it hasn't been set yet — this enforces
-        // one review per trip per direction (a driver can't rate the same passenger
-        // many times and keep skewing the passenger's running average), and is safe
-        // against concurrent duplicate submits.
+        // Atomically set the rating ONLY if it hasn't been set yet — one review per trip
+        // per direction, safe against concurrent duplicate submits.
         const trip = await TripModel.findOneAndUpdate(
             { _id: tripId, driverId, rating: { $exists: false } },
-            { $set: { rating: Math.round(rating) } },
+            { $set: { rating } },
             { new: true }
         );
 
-        if (!trip) {
-            const owned = await TripModel.exists({ _id: tripId, driverId });
-            if (!owned) {
-                return res.status(404).json({ error: 'Trip not found for this driver' });
-            }
-            return res.status(400).json({ error: 'You have already rated this passenger for this trip' });
+        if (trip) {
+            return res.status(200).json({ Status: 'SUCCESS', rating: trip.rating });
         }
 
-        return res.status(200).json({ Status: 'SUCCESS', rating: trip.rating });
+        // Already reviewed — return the existing value as a clean success.
+        const existing = await TripModel.findOne({ _id: tripId, driverId }).select('rating');
+        if (!existing) {
+            return res.status(404).json({ error: 'Trip not found for this driver' });
+        }
+        return res.status(200).json({ Status: 'SUCCESS', rating: existing.rating, alreadyRated: true });
     } catch (err: any) {
         return res.status(500).json({ Status: 'FAILED', error: err.message });
     }

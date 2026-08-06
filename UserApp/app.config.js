@@ -25,8 +25,10 @@ export default {
         }
       },
       infoPlist: {
-        NSLocationWhenInUseUsageDescription: "We use your location to show nearby data."
-      }
+        NSLocationWhenInUseUsageDescription: "We use your location to show nearby data.",
+        NSLocationAlwaysAndWhenInUseUsageDescription: "We use your location so your driver can find you, even when the app is in the background."
+      },
+      UIBackgroundModes: ["location"]
     },
 
     android: {
@@ -37,7 +39,9 @@ export default {
         }
       },
       permissions: [
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE_LOCATION"
       ],
       edgeToEdgeEnabled: true,
       adaptiveIcon: {
@@ -71,6 +75,15 @@ export default {
         },
       ],
       "expo-build-properties",
+      [
+        "expo-location",
+        {
+          locationWhenInUsePermission: "Allow TrackMyRide to use your location so we can show nearby vehicles.",
+          locationAlwaysAndWhenInUsePermission: "Allow TrackMyRide to use your location so your driver can find you, even when the app is in the background.",
+          isAndroidBackgroundLocationEnabled: true,
+          isAndroidForegroundServiceEnabled: true,
+        },
+      ],
     ],
 
     experiments: {

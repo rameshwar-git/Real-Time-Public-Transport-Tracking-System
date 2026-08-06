@@ -28,3 +28,12 @@ export const emitToUser = (io: any, userId: string, event: string, data: any): b
     }
     return false;
 };
+
+// Reference to the Socket.IO server, set at init time so REST controllers (e.g. a driver
+// posting a background location update) can also broadcast to connected passengers.
+export let socketIO: any = null;
+
+/** Called once from socket init to expose the server instance for controller-side emits. */
+export const setSocketIO = (io: any) => {
+    socketIO = io;
+};
