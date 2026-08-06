@@ -12,6 +12,7 @@ import { ActiveTripsList } from "@/components/driver/ActiveTripsList";
 import { DutyToggle } from "@/components/driver/DutyToggle";
 import { PinLocationCard } from "@/components/driver/PinLocationCard";
 import { ReviewPassengerModal } from "@/components/driver/ReviewPassengerModal";
+import { DriveModeBanner } from "@/components/driver/DriveModeBanner";
 
 export default function DriverDashboard() {
     const {
@@ -22,6 +23,7 @@ export default function DriverDashboard() {
         isOnDuty,
         activeTrips,
         incomingRequest,
+        passengerLocations,
         isChoosingOnMap,
         pinAddress,
         mapComponents,
@@ -42,6 +44,7 @@ export default function DriverDashboard() {
         handleDestinationSearchFocus,
         handleDestinationPress,
         dismissCompletedTrip,
+        driveMode,
     } = useDriverDashboard();
 
     const MapView = mapComponents?.MapView;
@@ -115,6 +118,19 @@ export default function DriverDashboard() {
                     />
                 )}
 
+                {!isChoosingOnMap && !incomingRequest && (
+                    <DriveModeBanner
+                        isAvailable={driveMode.isAvailable}
+                        isDriveActive={driveMode.isDriveActive}
+                        currentStep={driveMode.currentStep}
+                        distanceToNext={driveMode.distanceToNext}
+                        remainingDistanceText={driveMode.remainingDistanceText}
+                        remainingDurationText={driveMode.remainingDurationText}
+                        onStart={driveMode.startNavigation}
+                        onEnd={driveMode.stopNavigation}
+                    />
+                )}
+
                 <View style={{ height: mapHeight }}>
                     <MapViewComponent
                         MapView={MapView}
@@ -130,6 +146,8 @@ export default function DriverDashboard() {
                         isOnDuty={isOnDuty}
                         onDestinationPress={handleDestinationPress}
                         isChoosingOnMap={isChoosingOnMap}
+                        incomingRequest={incomingRequest}
+                        passengerLocations={passengerLocations}
                     />
                 </View>
 
@@ -160,6 +178,7 @@ export default function DriverDashboard() {
                         <ActiveTripsList
                             activeTrips={activeTrips}
                             driverLocation={driverLocation}
+                            passengerLocations={passengerLocations}
                             onStartTrip={startTrip}
                             onCancelTrip={handleCancelTrip}
                             onCompleteTrip={completeTrip}

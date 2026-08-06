@@ -131,9 +131,15 @@ export const MapViewComponent: React.FC<Props> = (
     };
 
     const handleCenterOnUser = () => {
-        if (origin && origin.latitude && origin.longitude && mapRef.current) {
+        // While a ride is active, the GPS button follows the assigned VEHICLE (driver's live
+        // position), so tapping it brings the car back into view. Otherwise it centers on the
+        // passenger's own (origin) location.
+        const center = isTracking && assignedDriverLocation
+            ? assignedDriverLocation
+            : origin;
+        if (center && center.latitude && center.longitude && mapRef.current) {
             isAnimatingRef.current = true;
-            mapRef.current.animateToRegion(toGpsRegion(origin), 2000);
+            mapRef.current.animateToRegion(toGpsRegion(center), 2000);
             // Release the guard after the animation completes
             setTimeout(() => {
                 isAnimatingRef.current = false;

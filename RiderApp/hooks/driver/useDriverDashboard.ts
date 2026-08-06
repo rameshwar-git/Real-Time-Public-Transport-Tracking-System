@@ -8,6 +8,7 @@ import { socket } from "@/services/socket";
 import { getActiveDriverTrips, getDriverProfile } from "@/services/apiService";
 import { useDriverSocketEvents } from "@/hooks/driver/useDriverSocketEvents";
 import { useAutoDropoff } from "@/hooks/driver/useAutoDropoff";
+import { useDriveMode } from "@/hooks/driver/useDriveMode";
 
 export function useDriverDashboard() {
     const [userId, setUserId] = useState<string | null>(null);
@@ -29,6 +30,16 @@ export function useDriverDashboard() {
     const [isChoosingOnMap, setIsChoosingOnMap] = useState<boolean>(false);
     const [pinAddress, setPinAddress] = useState<string>("");
     const [pinCoords, setPinCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+
+    // Live passenger locations, keyed by passengerId, streamed over the socket while a trip
+    // is scheduled/in progress. Used for the live passenger marker + "distance to passenger".
+    const [passengerLocations, setPassengerLocations] = useState<{ [passengerId: string]: { latitude: number; longitude: number } }>({});
+    const setPassengerLocation = (data: { passengerId: string; currentLocation: { latitude: number; longitude: number } }) => {
+        setPassengerLocations(prev => {
+            if (!data.currentLocation) return prev;
+            return { ...prev, [data.passengerId]: data.currentLocation };
+        });
+    };
 
     const requestTimeoutRef = useRef<any>(null);
     const [mapComponents, setMapComponents] = useState<any>(null);
@@ -135,7 +146,8 @@ export function useDriverDashboard() {
         setIncomingRequest,
         setActiveTrips,
         requestTimeoutRef,
-        userId
+        userId,
+        onPassengerLocation: setPassengerLocation
     });
 
     useAutoDropoff({
@@ -143,6 +155,16 @@ export function useDriverDashboard() {
         origin,
         activeTrips,
         setActiveTrips
+    });
+
+    // Turn-by-turn drive mode. Uses the driver's LIVE location for step advancement.
+    const driverLiveLocation = locations.find((u: any) => u.userId === userId)?.currentLocation || origin;
+    const hasActiveInProgressTrip = activeTrips.some((t: any) => t.status === 'in_progress');
+    const driveMode = useDriveMode({
+        origin: driverLiveLocation,
+        destination,
+        isOnDuty,
+        hasActiveInProgressTrip,
     });
 
     // --- Event Handlers ---
@@ -335,11 +357,15 @@ export function useDriverDashboard() {
         isOnDuty,
         activeTrips,
         incomingRequest,
+        passengerLocations,
         isChoosingOnMap,
         pinAddress,
         pinCoords,
         mapComponents,
         mapRef,
+
+        // Drive mode (turn-by-turn)
+        driveMode,
 
         // Setters needed by UI
         setIsChoosingOnMap,

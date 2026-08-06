@@ -9,13 +9,22 @@ interface ActiveTripsListProps {
     activeTrips: any[];
     /** Driver's live position, used to sort pickups/drop-offs by real distance. */
     driverLocation?: { latitude: number; longitude: number } | null;
+    /** Live passenger positions keyed by passengerId (streamed over the socket). */
+    passengerLocations?: { [passengerId: string]: { latitude: number; longitude: number } };
     onStartTrip: (trip: any) => void;
     onCancelTrip: (trip: any) => void;
     onCompleteTrip: (trip: any) => void;
 }
 
-export const ActiveTripsList = ({ activeTrips, driverLocation, onStartTrip, onCancelTrip, onCompleteTrip }: ActiveTripsListProps) => {
+export const ActiveTripsList = ({ activeTrips, driverLocation, passengerLocations, onStartTrip, onCancelTrip, onCompleteTrip }: ActiveTripsListProps) => {
     const [isExpanded, setIsExpanded] = useState(false);
+
+    // The passenger's live pickup coordinate (if known), falling back to the booked pickup.
+    // Lets the driver see the distance to the passenger actually move as they approach.
+    const pickupCoord = (trip: any) => {
+        const live = passengerLocations?.[trip.passengerId];
+        return live || trip.origin;
+    };
 
     // Straight-line distance (km) from the driver to a target coordinate, or null when unknown.
     const distKm = (c: any): number | null => {
@@ -45,7 +54,7 @@ export const ActiveTripsList = ({ activeTrips, driverLocation, onStartTrip, onCa
         displayedTrips = activeTripsRunning;
     } else {
         const scheduledTrips = activeTripsRunning.filter(t => t.status === 'scheduled')
-            .sort((a, b) => (distKm(a.origin) ?? Number.MAX_VALUE) - (distKm(b.origin) ?? Number.MAX_VALUE));
+            .sort((a, b) => (distKm(pickupCoord(a)) ?? Number.MAX_VALUE) - (distKm(pickupCoord(b)) ?? Number.MAX_VALUE));
         const inProgressTrips = activeTripsRunning.filter(t => t.status === 'in_progress')
             .sort((a, b) => (distKm(a.destination) ?? Number.MAX_VALUE) - (distKm(b.destination) ?? Number.MAX_VALUE));
         const activeShown = [scheduledTrips[0], inProgressTrips[0]].filter(Boolean);
@@ -53,8 +62,9 @@ export const ActiveTripsList = ({ activeTrips, driverLocation, onStartTrip, onCa
     }
 
     const renderActiveTrip = (trip: any, idx: number) => {
-    // Distance to the next pickup (booking) or to the upcoming drop-off.
-    const pickupDist = trip.status === 'scheduled' ? distKm(trip.origin) : null;
+    // Distance to the next pickup (live passenger position, else booked pickup) or to the
+    // upcoming drop-off.
+    const pickupDist = trip.status === 'scheduled' ? distKm(pickupCoord(trip)) : null;
     const dropDist = trip.status === 'in_progress' ? distKm(trip.destination) : null;
     return (
         <View key={trip.tripId || idx} style={styles.tripCard}>

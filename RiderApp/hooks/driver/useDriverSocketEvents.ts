@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 
 interface UseDriverSocketEventsProps {
@@ -8,6 +8,8 @@ interface UseDriverSocketEventsProps {
     setActiveTrips: React.Dispatch<React.SetStateAction<any[]>>;
     requestTimeoutRef: React.MutableRefObject<any>;
     userId: string | null;
+    /** Called on every live passenger location update (`passenger-location-updated`). */
+    onPassengerLocation?: (data: { passengerId: string; currentLocation: { latitude: number; longitude: number } }) => void;
 }
 
 export const useDriverSocketEvents = ({
@@ -16,8 +18,16 @@ export const useDriverSocketEvents = ({
     setIncomingRequest,
     setActiveTrips,
     requestTimeoutRef,
-    userId
+    userId,
+    onPassengerLocation
 }: UseDriverSocketEventsProps) => {
+
+    // Keep the latest callback without re-registering the socket listeners on every render
+    // (the callback is a new identity each render when passed inline from the parent hook).
+    const onPassengerLocationRef = useRef(onPassengerLocation);
+    useEffect(() => {
+        onPassengerLocationRef.current = onPassengerLocation;
+    }, [onPassengerLocation]);
 
     useEffect(() => {
         if (!isOnDuty) {
@@ -67,12 +77,24 @@ export const useDriverSocketEvents = ({
             Alert.alert("Trip Completed", "The trip has been successfully completed.");
         };
 
+        const handlePassengerLocationUpdated = (data: any) => {
+            if (!data || !data.passengerId || !data.currentLocation) return;
+            onPassengerLocationRef.current?.({
+                passengerId: data.passengerId,
+                currentLocation: {
+                    latitude: data.currentLocation.latitude,
+                    longitude: data.currentLocation.longitude,
+                },
+            });
+        };
+
         socket.on("ride-request", handleRideRequest);
         socket.on("trip-created", handleTripCreated);
         socket.on("trip-canceled", handleTripCanceled);
         socket.on("request-canceled", handleRequestCanceled);
         socket.on("trip-started", handleTripStarted);
         socket.on("trip-completed", handleTripCompleted);
+        socket.on("passenger-location-updated", handlePassengerLocationUpdated);
 
         return () => {
             socket.off("ride-request", handleRideRequest);
@@ -81,6 +103,7 @@ export const useDriverSocketEvents = ({
             socket.off("request-canceled", handleRequestCanceled);
             socket.off("trip-started", handleTripStarted);
             socket.off("trip-completed", handleTripCompleted);
+            socket.off("passenger-location-updated", handlePassengerLocationUpdated);
             if (requestTimeoutRef.current) clearTimeout(requestTimeoutRef.current);
         };
         // socket, isOnDuty, userId are the only values that should trigger re-registration.

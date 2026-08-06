@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Platform, View, StyleSheet, Animated, TouchableOpacity } from "react-native";
 import { UserLocation } from "@/types/map";
 import { Region } from "react-native-maps";
@@ -30,6 +30,8 @@ type Props = {
     isOnDuty?: boolean;
     onDestinationPress?: () => void;
     isChoosingOnMap?: boolean;
+    incomingRequest?: any;
+    passengerLocations?: { [passengerId: string]: { latitude: number; longitude: number } };
 };
 
 export const MapViewComponent: React.FC<Props> = (
@@ -46,7 +48,9 @@ export const MapViewComponent: React.FC<Props> = (
         activeTrips,
         isOnDuty,
         onDestinationPress,
-        isChoosingOnMap
+        isChoosingOnMap,
+        incomingRequest,
+        passengerLocations
     }) => {
     const isLifted = useRef(false);
     const liftAnim = useRef(new Animated.Value(0)).current;
@@ -54,6 +58,19 @@ export const MapViewComponent: React.FC<Props> = (
     // The driver's own live coordinate (from their shared location feed). The driver app shows
     // it as the standard blue current-location dot, and the camera follows it along the route.
     const ownLocation = locations.find((u: any) => u.userId === currentUserId)?.currentLocation;
+
+    // Route refresh key — bumped every 10s while a route is on screen to force
+    // MapViewDirections to re-fetch the route from Google as the driver moves.
+    const [routeRefreshKey, setRouteRefreshKey] = useState(0);
+
+    // Whether a live route polyline should be drawn and periodically refreshed.
+    const isRouting = !!isOnDuty && isValidCoord(origin) && isValidCoord(destination) && !isChoosingOnMap;
+
+    useEffect(() => {
+        if (!isRouting) return;
+        const id = setInterval(() => setRouteRefreshKey(k => k + 1), 10000);
+        return () => clearInterval(id);
+    }, [isRouting]);
 
     const handleRegionChange = () => {
         if (!isLifted.current) {
@@ -91,8 +108,12 @@ export const MapViewComponent: React.FC<Props> = (
     };
 
     const handleCenterOnUser = () => {
-        if (origin && origin.latitude && origin.longitude && mapRef.current) {
-            mapRef.current.animateToRegion(toGpsRegion(origin), 2000);
+        // Center on the driver's LIVE position (kept fresh by the location feed), falling
+        // back to the one-time GPS origin. This keeps the GPS button following the driver
+        // instead of snapping back to the stale startup fix.
+        const center = ownLocation || origin;
+        if (center && center.latitude && center.longitude && mapRef.current) {
+            mapRef.current.animateToRegion(toGpsRegion(center), 2000);
         }
     };
 
@@ -121,6 +142,16 @@ export const MapViewComponent: React.FC<Props> = (
             !isNaN(o.latitude) && !isNaN(o.longitude) &&
             !(o.latitude === 0 && o.longitude === 0)
         );
+
+    // A distinct "incoming request" pickup marker. Shown when a new passenger asks for a
+    // ride while the driver is on duty, WITHOUT altering the existing route polyline.
+    const renderRequestMarker = (Marker: any, key: string, coordinate: { latitude: number; longitude: number }) => (
+        <Marker key={key} coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }}>
+            <View style={styles.requestMarker}>
+                <Ionicons name="person-add" size={16} color="#fff" />
+            </View>
+        </Marker>
+    );
 
     if (!MapView || !mapRegion) {
         // We still need to return null if components are missing,
@@ -172,15 +203,32 @@ export const MapViewComponent: React.FC<Props> = (
 
                     let activeTripPassengers: any[] = [];
                     if (activeTrips && activeTrips.length > 0) {
-                        activeTripPassengers = activeTrips.map(t => ({
-                            userId: t.passengerId,
-                            currentLocation: t.status === 'scheduled' ? t.origin : null,
-                        })).filter(u => u.currentLocation !== null);
+                        activeTripPassengers = activeTrips.map(t => {
+                            if (t.status === 'scheduled') {
+                                // Prefer the passenger's live position (falls back to booked
+                                // pickup) so the driver sees them approach the pickup in real time.
+                                const live = passengerLocations?.[t.passengerId];
+                                return { userId: t.passengerId, currentLocation: live || t.origin };
+                            }
+                            if (t.status === 'in_progress') {
+                                // Live passenger position (if known) so the driver sees them
+                                // move toward/away from the vehicle in real time.
+                                const live = passengerLocations?.[t.passengerId];
+                                return { userId: t.passengerId, currentLocation: live || null };
+                            }
+                            return { userId: t.passengerId, currentLocation: null };
+                        }).filter(u => u.currentLocation !== null);
                     }
 
                     const drivers = locations.filter((u: any) => u.currentLocation && u.userId !== currentUserId && !!u.vehicleId);
 
                     return [
+                        ...(incomingRequest && incomingRequest.origin &&
+                            typeof incomingRequest.origin.latitude === 'number' &&
+                            typeof incomingRequest.origin.longitude === 'number' &&
+                            !isNaN(incomingRequest.origin.latitude) && !isNaN(incomingRequest.origin.longitude)
+                            ? [renderRequestMarker(Marker, `req_${incomingRequest.passengerId}`, incomingRequest.origin)]
+                            : []),
                         ...nearestPassengers.map((u: any) => {
                             if (!u.currentLocation || typeof u.currentLocation.latitude !== 'number' || typeof u.currentLocation.longitude !== 'number' || isNaN(u.currentLocation.latitude) || isNaN(u.currentLocation.longitude)) return null;
                             return renderPassengerMarker(
@@ -210,7 +258,8 @@ export const MapViewComponent: React.FC<Props> = (
                 })()}
                 {isOnDuty && isValidCoord(origin) && isValidCoord(destination) && (
                     <MapViewDirections
-                        origin={origin}
+                        key={`route-refresh-${routeRefreshKey}`}
+                        origin={ownLocation || origin}
                         destination={destination}
                         waypoints={scheduledPickups}
                         apikey={env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}
@@ -245,6 +294,21 @@ export const MapViewComponent: React.FC<Props> = (
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
+    requestMarker: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: '#F59E0B',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#fff',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.3,
+        shadowRadius: 2,
+        elevation: 4,
+    },
     gpsButton: {
         position: 'absolute',
         bottom: 140, // Float above bottom panels

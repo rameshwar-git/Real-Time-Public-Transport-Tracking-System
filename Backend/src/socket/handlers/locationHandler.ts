@@ -3,6 +3,7 @@ import { TripModel } from '@/models/trip/TripModel';
 import { getDistance } from '@/utils/geometry';
 import { restoreSeat } from '../utils/seats';
 import { broadcastDriverLocationToPassengers } from '../broadcastLocation';
+import { broadcastPassengerLocationToDrivers } from '../broadcastLocation';
 
 /**
  * Registers the `update-location` socket event.
@@ -24,6 +25,10 @@ export function registerLocationHandler(io: any, socket: any, _userId: string) {
         try {
             // --- Broadcast driver location (with live seats) to every passenger on the shared vehicle ---
             await broadcastDriverLocationToPassengers(io, userId, currentLocation);
+
+            // --- Broadcast passenger live location to their assigned driver(s), so the driver
+            // can show the passenger's live position + distance. No-op for driver emitters. ---
+            await broadcastPassengerLocationToDrivers(io, userId, currentLocation);
 
             // --- Per-trip proximity auto-complete (driver & its passenger > 40 m apart) ---
             const activeTrips = await TripModel.find({

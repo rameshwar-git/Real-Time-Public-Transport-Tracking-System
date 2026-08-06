@@ -52,3 +52,39 @@ export const broadcastDriverLocationToPassengers = async (
         }
     }
 };
+
+/**
+ * Push a passenger's live location to every driver currently carrying them
+ * (scheduled for pickup, or in progress). This drives the driver's "distance to
+ * passenger" readout and live passenger marker.
+ *
+ * A driver who shares their own location also hits this path via `update-location`;
+ * for them `passengerId === their own id`, which matches no active trip, so this is
+ * a safe no-op.
+ */
+export const broadcastPassengerLocationToDrivers = async (
+    io: any,
+    passengerId: string,
+    currentLocation: { latitude: number; longitude: number }
+): Promise<void> => {
+    const activeTrips = await TripModel.find({
+        passengerId,
+        status: { $in: ['scheduled', 'in_progress'] }
+    });
+    if (activeTrips.length === 0) return;
+
+    // Notify each distinct driver exactly once.
+    const seen = new Set<string>();
+    for (const trip of activeTrips) {
+        const driverId = trip.driverId ? trip.driverId.toString() : null;
+        if (!driverId || seen.has(driverId)) continue;
+        seen.add(driverId);
+        const sid = connectedUsers.get(driverId);
+        if (sid) {
+            io.to(sid).emit('passenger-location-updated', {
+                passengerId,
+                currentLocation,
+            });
+        }
+    }
+};
