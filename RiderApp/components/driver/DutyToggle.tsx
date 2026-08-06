@@ -3,7 +3,6 @@ import {
     Animated,
     Easing,
     StyleSheet,
-    Text,
     TouchableOpacity,
     View,
 } from 'react-native';

@@ -23,7 +23,7 @@ export const useLocationSharing = (userId: string | null) => {
                 longitude: loc.coords.longitude,
             };
 
-            await updateLocation(userId, coords, destination, locationId, token, status);
+            await updateLocation(coords, destination, locationId, token, status);
 
             // Emit real-time position so the backend can run proximity checks
             if (socket.connected) {

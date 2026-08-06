@@ -16,13 +16,6 @@ export const getSeats = async (vehicleId: any): Promise<number> => {
     return seatCount(vehicle);
 };
 
-/** Read only the stored available-seats field (no capacity fallback; null when unset). */
-export const getStoredSeats = async (vehicleId: any): Promise<number | null> => {
-    const vehicle = await VehicleModel.findById(vehicleId).lean();
-    if (!vehicle) return null;
-    return vehicle.availableSeats != null ? Number(vehicle.availableSeats) : null;
-};
-
 /**
  * Decrement a vehicle's available seat count by `count` (default 1), if enough
  * seats remain. Returns the new available-seat count, or null when the vehicle

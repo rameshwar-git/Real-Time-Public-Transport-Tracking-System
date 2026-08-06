@@ -23,7 +23,6 @@ app.use('/api', tripRoutes);
 
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
-const ID = process.env.NETWORK_ID as string;
 
 
 const server = http.createServer(app);

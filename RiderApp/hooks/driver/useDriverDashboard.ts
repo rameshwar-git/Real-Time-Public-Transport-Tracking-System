@@ -237,14 +237,19 @@ export function useDriverDashboard() {
         ]);
     };
 
-    const handleChooseOnMap = async () => {
-        setIsChoosingOnMap(true);
-        const centerCoords = { latitude: mapRegion.latitude, longitude: mapRegion.longitude };
-        setPinCoords(centerCoords);
-        const address = await reverseGeocode(mapRegion.latitude, mapRegion.longitude);
+    // Update the map-pin coordinates and reverse-geocode the given lat/lng so the
+    // pin card can show the address under the crosshair.
+    const updatePinFromCoords = async (latitude: number, longitude: number) => {
+        setPinCoords({ latitude, longitude });
+        const address = await reverseGeocode(latitude, longitude);
         if (address) {
             setPinAddress(address);
         }
+    };
+
+    const handleChooseOnMap = async () => {
+        setIsChoosingOnMap(true);
+        await updatePinFromCoords(mapRegion.latitude, mapRegion.longitude);
     };
 
     const handleConfirmPinLocation = async () => {
@@ -273,12 +278,7 @@ export function useDriverDashboard() {
     const handleRegionChangeComplete = async (region: any) => {
         setMapRegion(region);
         if (isChoosingOnMap) {
-            const centerCoords = { latitude: region.latitude, longitude: region.longitude };
-            setPinCoords(centerCoords);
-            const address = await reverseGeocode(region.latitude, region.longitude);
-            if (address) {
-                setPinAddress(address);
-            }
+            await updatePinFromCoords(region.latitude, region.longitude);
         }
     };
 

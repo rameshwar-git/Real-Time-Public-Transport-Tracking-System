@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { colors, radius, shadow, spacing } from '@/constants/ui';
+import { colors, radius, spacing } from '@/constants/ui';
 
 interface Driver {
     userId: string;

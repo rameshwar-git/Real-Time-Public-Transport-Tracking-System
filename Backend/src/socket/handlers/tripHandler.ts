@@ -1,4 +1,4 @@
-import { connectedUsers, emitToUser } from '../connectionManager';
+import { emitToUser } from '../connectionManager';
 import { TripModel } from '@/models/trip/TripModel';
 import DriverLocationModel from '@/models/location/DriverLocation';
 import { restoreSeat } from '../utils/seats';
@@ -9,7 +9,7 @@ import { restoreSeat } from '../utils/seats';
  *  - dropoff-passenger
  *  - cancel-trip
  */
-export function registerTripHandlers(io: any, socket: any, userId: string) {
+export function registerTripHandlers(io: any, socket: any, _userId: string) {
 
     socket.on("start-trip", async (data: any) => {
         const { tripId } = data;

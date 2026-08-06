@@ -89,7 +89,7 @@ export const setDriverVehicle = async (req: Request, res: Response) => {
         if (!driverId) {
             return res.status(400).json({ error: "DriverId is required" });
         }
-        const driver = await VehicleModel.findOneAndUpdate({ driverId }, { ...req.body, timestamp: new Date() });
+        await VehicleModel.findOneAndUpdate({ driverId }, { ...req.body, timestamp: new Date() });
         res.status(200).json({ 'Status': 'SUCCESS' });
     } catch (err: any) {
         res.status(500).json({ 'Status': 'FAILED' });
@@ -141,6 +141,13 @@ export const getDriverEarnings = async (req: AuthRequest, res: Response) => {
         const weeklyEarnings = weeklyTrips.reduce((sum, trip) => sum + fareFor(trip), 0);
         const totalEarnings = completedTrips.reduce((sum, trip) => sum + fareFor(trip), 0);
 
+        // Today's earnings only (completed trips that ended from local midnight onward).
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEarnings = completedTrips
+            .filter(trip => trip.endDate && new Date(trip.endDate) >= todayStart)
+            .reduce((sum, trip) => sum + fareFor(trip), 0);
+
         const lastWeekTrips = completedTrips.filter(trip => {
             const twoWeeksAgo = new Date(weekAgo.getTime() - 7 * 24 * 60 * 60 * 1000);
             return trip.endDate && new Date(trip.endDate) < weekAgo && new Date(trip.endDate) >= twoWeeksAgo;
@@ -160,6 +167,7 @@ export const getDriverEarnings = async (req: AuthRequest, res: Response) => {
 
         return res.status(200).json({
             totalEarnings: Number(totalEarnings.toFixed(2)),
+            todayEarnings: Number(todayEarnings.toFixed(2)),
             weeklyEarnings: Number(weeklyEarnings.toFixed(2)),
             weeklyChange: Number(weeklyChange),
             completedRides: completedTrips.length,

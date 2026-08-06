@@ -3,16 +3,29 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, LayoutAnimation }
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, spacing } from '@/constants/ui';
 import { formatFare, formatKm } from '@/utils/format';
+import { getDistance } from '@/utils/geometry';
 
 interface ActiveTripsListProps {
     activeTrips: any[];
+    /** Driver's live position, used to sort pickups/drop-offs by real distance. */
+    driverLocation?: { latitude: number; longitude: number } | null;
     onStartTrip: (trip: any) => void;
     onCancelTrip: (trip: any) => void;
     onCompleteTrip: (trip: any) => void;
 }
 
-export const ActiveTripsList = ({ activeTrips, onStartTrip, onCancelTrip, onCompleteTrip }: ActiveTripsListProps) => {
+export const ActiveTripsList = ({ activeTrips, driverLocation, onStartTrip, onCancelTrip, onCompleteTrip }: ActiveTripsListProps) => {
     const [isExpanded, setIsExpanded] = useState(false);
+
+    // Straight-line distance (km) from the driver to a target coordinate, or null when unknown.
+    const distKm = (c: any): number | null => {
+        if (!driverLocation || !c ||
+            typeof c.latitude !== 'number' || typeof c.longitude !== 'number' ||
+            isNaN(c.latitude) || isNaN(c.longitude)) {
+            return null;
+        }
+        return getDistance(driverLocation.latitude, driverLocation.longitude, c.latitude, c.longitude);
+    };
 
     if (activeTrips.length === 0) return null;
 
@@ -32,21 +45,28 @@ export const ActiveTripsList = ({ activeTrips, onStartTrip, onCancelTrip, onComp
         displayedTrips = activeTripsRunning;
     } else {
         const scheduledTrips = activeTripsRunning.filter(t => t.status === 'scheduled')
-            .sort((a, b) => (a.estimatedDistance || Number.MAX_VALUE) - (b.estimatedDistance || Number.MAX_VALUE));
+            .sort((a, b) => (distKm(a.origin) ?? Number.MAX_VALUE) - (distKm(b.origin) ?? Number.MAX_VALUE));
         const inProgressTrips = activeTripsRunning.filter(t => t.status === 'in_progress')
-            .sort((a, b) => (a.estimatedDistance || Number.MAX_VALUE) - (b.estimatedDistance || Number.MAX_VALUE));
+            .sort((a, b) => (distKm(a.destination) ?? Number.MAX_VALUE) - (distKm(b.destination) ?? Number.MAX_VALUE));
         const activeShown = [scheduledTrips[0], inProgressTrips[0]].filter(Boolean);
         displayedTrips = activeShown;
     }
 
-    const renderActiveTrip = (trip: any, idx: number) => (
+    const renderActiveTrip = (trip: any, idx: number) => {
+    // Distance to the next pickup (booking) or to the upcoming drop-off.
+    const pickupDist = trip.status === 'scheduled' ? distKm(trip.origin) : null;
+    const dropDist = trip.status === 'in_progress' ? distKm(trip.destination) : null;
+    return (
         <View key={trip.tripId || idx} style={styles.tripCard}>
             <View style={{ flex: 1 }}>
                 <Text style={styles.tripPassenger}>{trip.passengerName}</Text>
                 <Text style={styles.tripStatus}>
                     {trip.status === 'scheduled' ? 'Awaiting Pickup' : 'In Progress'}
-                    {trip.estimatedDistance !== undefined && trip.estimatedDuration !== undefined && (
-                        ` • ${formatKm(trip.estimatedDistance)} (${trip.estimatedDuration} min)`
+                    {pickupDist != null && (
+                        ` • Pickup ${formatKm(pickupDist)} away`
+                    )}
+                    {dropDist != null && (
+                        ` • Drop ${formatKm(dropDist)} away`
                     )}
                     {trip.fare !== undefined && (
                         ` • ${formatFare(trip.fare)}`
@@ -72,6 +92,7 @@ export const ActiveTripsList = ({ activeTrips, onStartTrip, onCancelTrip, onComp
             </View>
         </View>
     );
+    };
 
     const tripCountLabel = completedTrips.length > 0
         ? `Trips (${activeTrips.length})`

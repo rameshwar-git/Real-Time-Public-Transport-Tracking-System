@@ -139,7 +139,7 @@ export default function ReportsScreen() {
         <Text style={[styles.sectionTitle, styles.sectionGap]}>Earnings (Last 6 Months)</Text>
         <View style={styles.chartCard}>
           <View style={styles.chartRow}>
-            {report.monthBreakdown.map((m, i) => (
+            {report.monthBreakdown.map((m) => (
               <View key={m.label} style={styles.barCol}>
                 <Text style={styles.barAmount}>
                   {m.earnings > 0 ? `₹${Math.round(m.earnings / 1000)}k` : ''}

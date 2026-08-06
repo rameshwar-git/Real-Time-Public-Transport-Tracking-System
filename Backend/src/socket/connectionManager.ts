@@ -15,10 +15,6 @@ export const userLocations = new Map<string, { latitude: number; longitude: numb
 // Radius threshold in km (40 metres = 0.04 km)
 export const PROXIMITY_COMPLETION_RADIUS_KM = 0.04;
 
-/** Look up a user's current socket ID. Returns undefined if offline. */
-export const getSocketId = (userId: string): string | undefined =>
-    connectedUsers.get(userId);
-
 /** Emit an event to a specific user if they are connected. */
 export const emitToUser = (io: any, userId: string, event: string, data: any): boolean => {
     const sid = connectedUsers.get(userId);

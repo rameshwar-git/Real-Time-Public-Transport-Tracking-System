@@ -4,7 +4,7 @@ import { UserLocation } from "@/types/map";
 import { Region } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import { env } from "@/config/env";
-import { getNearestNUsers, calculateRouteMatch } from "@/utils/geometry";
+import { getNearestNUsers, calculateRouteMatch, isValidCoord } from "@/utils/geometry";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 // Modular subcomponents
@@ -26,7 +26,6 @@ type Props = {
     destination: any;
     origin: any;
     mapRef: any;
-    isConfirmed?: boolean;
     activeTrips?: any[];
     isOnDuty?: boolean;
     onDestinationPress?: () => void;
@@ -44,7 +43,6 @@ export const MapViewComponent: React.FC<Props> = (
         destination,
         origin,
         mapRef,
-        isConfirmed,
         activeTrips,
         isOnDuty,
         onDestinationPress,
@@ -52,10 +50,9 @@ export const MapViewComponent: React.FC<Props> = (
     }) => {
     const isLifted = useRef(false);
     const liftAnim = useRef(new Animated.Value(0)).current;
-    const didFitRouteRef = useRef(false);
 
-    // The driver's own live coordinate (from their shared location feed) plus whether
-    // they are mid-trip — used to follow their marker along the route.
+    // The driver's own live coordinate (from their shared location feed). The driver app shows
+    // it as the standard blue current-location dot, and the camera follows it along the route.
     const ownLocation = locations.find((u: any) => u.userId === currentUserId)?.currentLocation;
 
     const handleRegionChange = () => {
@@ -99,14 +96,12 @@ export const MapViewComponent: React.FC<Props> = (
         }
     };
 
-    // Follow the driver's own marker along the route during an active trip, at a stable
-    // street-level zoom. Constant deltas mean the camera only pans (never re-zooms), so
-    // live location updates don't cause auto zoom in/out.
+    // Keep the camera centered on the driver whenever a route is on screen (on duty with a
+    // destination), so upcoming street turns stay in view. Constant deltas mean the camera only
+    // pans (never re-zooms), so live location updates don't cause auto zoom in/out.
+    const shouldFollow = !!isOnDuty && !!origin && !!destination && !isChoosingOnMap;
     useEffect(() => {
-        const hasActiveTrip = Array.isArray(activeTrips) && activeTrips.some((t: any) =>
-            t.status === 'scheduled' || t.status === 'in_progress'
-        );
-        if (!hasActiveTrip || !ownLocation || !mapRef.current) return;
+        if (!shouldFollow || !ownLocation || !mapRef.current) return;
         if (
             typeof ownLocation.latitude !== 'number' ||
             typeof ownLocation.longitude !== 'number' ||
@@ -114,22 +109,18 @@ export const MapViewComponent: React.FC<Props> = (
             isNaN(ownLocation.longitude)
         ) return;
         mapRef.current.animateToRegion(toGpsRegion({ latitude: ownLocation.latitude, longitude: ownLocation.longitude }), 800);
-    }, [ownLocation?.latitude, ownLocation?.longitude, activeTrips]);
+    }, [ownLocation?.latitude, ownLocation?.longitude, shouldFollow]);
 
-    // Re-arm the one-time route fit whenever a new route (origin/destination) starts,
-    // so each new trip gets its own context fit without re-fitting on live updates.
-    useEffect(() => {
-        didFitRouteRef.current = false;
-    }, [origin?.latitude, origin?.longitude, destination?.latitude, destination?.longitude]);
-
-    // Reject 0,0 / NaN / null coords — prevents Google Maps NOT_FOUND errors
-    const isValidCoord = (c: any): boolean =>
-        c != null &&
-        typeof c.latitude === 'number' &&
-        typeof c.longitude === 'number' &&
-        !isNaN(c.latitude) &&
-        !isNaN(c.longitude) &&
-        !(c.latitude === 0 && c.longitude === 0);
+    // Accepted-but-not-yet-picked-up passengers become route waypoints, so the navigation
+    // line reroutes through their pickup points on the way to the final destination.
+    const scheduledPickups = (Array.isArray(activeTrips) ? activeTrips : [])
+        .filter((t: any) => t.status === 'scheduled')
+        .map((t: any) => t.origin)
+        .filter((o: any) =>
+            o && typeof o.latitude === 'number' && typeof o.longitude === 'number' &&
+            !isNaN(o.latitude) && !isNaN(o.longitude) &&
+            !(o.latitude === 0 && o.longitude === 0)
+        );
 
     if (!MapView || !mapRegion) {
         // We still need to return null if components are missing,
@@ -221,21 +212,11 @@ export const MapViewComponent: React.FC<Props> = (
                     <MapViewDirections
                         origin={origin}
                         destination={destination}
+                        waypoints={scheduledPickups}
                         apikey={env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}
                         strokeWidth={5}
                         strokeColor="blue"
                         mode="DRIVING"
-                        onReady={(result) => {
-                            // Fit to the route once for context; the follow effect above pans the
-                            // camera at constant zoom on subsequent location updates, so this must
-                            // not run repeatedly or it would cause auto zoom in/out.
-                            if (didFitRouteRef.current) return;
-                            didFitRouteRef.current = true;
-                            mapRef.current?.fitToCoordinates(result.coordinates, {
-                                edgePadding: { top: 80, right: 60, bottom: 220, left: 60 },
-                                animated: true,
-                            });
-                        }}
                         onError={(err) => console.warn('[MapViewDirections] Route error:', err)}
                     />
                 )}

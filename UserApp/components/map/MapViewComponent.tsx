@@ -4,6 +4,7 @@ import { UserLocation } from "@/types/map";
 import { Region } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import { env } from "@/config/env";
+import { isValidCoord } from "@/utils/geometry";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 // Modular subcomponents
@@ -60,16 +61,20 @@ export const MapViewComponent: React.FC<Props> = (
     const liftAnim = useRef(new Animated.Value(0)).current;
     const isAnimatingRef = useRef(false);
 
+    // Once a ride is accepted the map switches out of "current-location" mode into
+    // vehicle-tracking mode: the blue current-location dot is hidden and the camera
+    // follows the assigned driver's vehicle along the route.
+    const isTracking =
+        isConfirmed &&
+        tripStatus != null &&
+        tripStatus !== 'completed' &&
+        tripStatus !== 'cancelled';
+
     // Follow the assigned vehicle at a stable street-level zoom while the trip is active.
     // Each live driver-location update re-centers on the vehicle along the route WITHOUT
     // changing the zoom (toGpsRegion keeps constant deltas = pure pan), so the map never
     // auto zooms in/out as coordinates stream in.
     useEffect(() => {
-        const isTracking =
-            isConfirmed &&
-            tripStatus != null &&
-            tripStatus !== 'completed' &&
-            tripStatus !== 'cancelled';
         if (!isTracking || !assignedDriverLocation || !mapRef.current) return;
         if (
             typeof assignedDriverLocation.latitude !== 'number' ||
@@ -136,15 +141,6 @@ export const MapViewComponent: React.FC<Props> = (
         }
     };
 
-    // Reject any coordinate that is 0,0 / NaN / missing — sends NOT_FOUND to Google
-    const isValidCoord = (c: any): boolean =>
-        c != null &&
-        typeof c.latitude === 'number' &&
-        typeof c.longitude === 'number' &&
-        !isNaN(c.latitude) &&
-        !isNaN(c.longitude) &&
-        !(c.latitude === 0 && c.longitude === 0);
-
     return (
         <View style={{ flex: 1 }}>
             <MapView
@@ -153,8 +149,8 @@ export const MapViewComponent: React.FC<Props> = (
                 initialRegion={mapRegion}
                 onRegionChange={handleRegionChange}
                 onRegionChangeComplete={handleRegionChangeComplete}
-                showsUserLocation
-                showsMyLocationButton={false}
+                showsUserLocation={!isTracking}
+                showsMyLocationButton={!isTracking}
                 showsCompass
                 rotateEnabled={false}
                 pitchEnabled

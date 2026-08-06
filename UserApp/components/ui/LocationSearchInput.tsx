@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React from "react";
 import {View, TextInput, StyleSheet, TouchableOpacity} from "react-native";
 import { MapPin, X } from "lucide-react-native";
 import { colors, radius, spacing } from "@/constants/ui";

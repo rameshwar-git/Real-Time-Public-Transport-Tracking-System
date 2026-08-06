@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
-import { colors, radius, shadow, spacing, type } from '@/constants/ui';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { colors, radius, spacing, type } from '@/constants/ui';
 import { calculateEstimatedFare, formatCurrency, roundToNearestFive } from '@/utils/fare';
 
 interface DriverLite {

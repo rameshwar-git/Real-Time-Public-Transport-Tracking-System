@@ -12,7 +12,6 @@ let globalLocationInterval: any = null;
 let globalLastStatus: string | null = null;
 
 export const useLocationSharing = (userId: string | null, onLocationUpdate?: (coords: { latitude: number, longitude: number }) => void) => {
-    const hookId = useRef(Math.random().toString(36).substring(7));
     const lastLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
     const lastStatusRef = useRef<string | null>(null);
     const lastDestinationRef = useRef<any>(null);
@@ -74,7 +73,7 @@ export const useLocationSharing = (userId: string | null, onLocationUpdate?: (co
                     globalLastStatus = currentStatus; // Sync to global
                     console.log(`Sending location update:`, { coords, destination, status: currentStatus });
 
-                    await updateLocation(userId!, coords, destination, locationId || undefined, token, currentStatus);
+                    await updateLocation(coords, destination, locationId || undefined, token, currentStatus);
 
                     // Real-time Socket Broadcast
                     if (socket.connected) {
@@ -137,7 +136,7 @@ export const useLocationSharing = (userId: string | null, onLocationUpdate?: (co
             const loc = await getCurrentLocation();
             if (loc) {
                 const coords = { latitude: loc.latitude, longitude: loc.longitude };
-                await updateLocation(userId, coords, null, locationId || undefined, token, 'inactive');
+                await updateLocation(coords, null, locationId || undefined, token, 'inactive');
                 if (socket.connected) {
                     socket.emit("update-location", {
                         userId,

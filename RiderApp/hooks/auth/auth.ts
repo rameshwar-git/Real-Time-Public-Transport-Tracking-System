@@ -1,20 +1,13 @@
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { env } from "@/config/env";
-import { saveToken, getToken, removeToken } from "@/services/storageService";
+import { saveToken, removeToken } from "@/services/storageService";
 
 const API_URL = env.API_URL;
 
 type AuthPayload = {
   email: string;
   password: string;
-};
-
-type LoginResponse = {
-  message: string;
-  token?: string;
-  userId?: string;
-  locationId?: string;
 };
 
 
@@ -49,29 +42,6 @@ export const handleSignIn = async ({ email, password }: AuthPayload) => {
   } catch (error: any) {
     console.log("SIGN IN ERROR:", error);
     return { status: "FAILED", message: error?.message || "Network error" };
-  }
-};
-
-
-
-// VALIDATE TOKEN (auto login check)
-export const validateSession = async () => {
-  try {
-    const token = await getToken();
-
-    if (!token) return "NO_TOKEN";
-
-    const response = await fetch(`${API_URL}/drivers/validate`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return response.ok ? "VALID" : "INVALID";
-  } catch (error) {
-    console.log("VALIDATE ERROR:", error);
-    return "ERROR";
   }
 };
 

@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -14,8 +13,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { getUpcomingRides, getRecentRides, getPassengerStats, getCurrentUser } from '@/services/apiService';
 import { router, useFocusEffect } from 'expo-router';
-
-const { width } = Dimensions.get('window');
 
 export default function UserDashboard() {
   const [upcomingRides, setUpcomingRides] = useState<any[]>([]);

@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { Alert } from 'react-native';
 import { getDistance } from '@/utils/geometry';
 
 interface UseAutoDropoffProps {

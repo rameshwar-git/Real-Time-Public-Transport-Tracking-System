@@ -25,7 +25,6 @@ export default function App() {
         isChoosingOnMap,
         pinAddress,
         driverDetails,
-        otp,
         tripStatus,
         tripId,
         routeDetails,

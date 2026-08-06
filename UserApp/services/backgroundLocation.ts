@@ -40,7 +40,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: any) =>
         const raw = await AsyncStorage.getItem(CONTEXT_KEY);
         if (!raw) return; // sharing was stopped; nothing to send
         const ctx: BgSharingContext = JSON.parse(raw);
-        await updateLocation(ctx.userId, coords, ctx.destination, undefined, ctx.token, ctx.status);
+        await updateLocation(coords, ctx.destination, undefined, ctx.token, ctx.status);
     } catch (e) {
         console.warn('[bg-location] POST failed:', e);
     }

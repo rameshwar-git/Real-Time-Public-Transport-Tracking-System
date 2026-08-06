@@ -9,7 +9,7 @@ import { broadcastDriverLocationToPassengers } from '../broadcastLocation';
  * Stores coords in memory, broadcasts driver location to passenger,
  * and runs proximity-based auto-complete checks.
  */
-export function registerLocationHandler(io: any, socket: any, userId: string) {
+export function registerLocationHandler(io: any, socket: any, _userId: string) {
 
     socket.on("update-location", async (data: any) => {
         const { userId, currentLocation } = data;

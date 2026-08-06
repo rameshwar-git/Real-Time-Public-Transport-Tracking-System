@@ -6,7 +6,7 @@ import DriverModel from '@/models/users/UserDriverModel';
 import { TripModel } from '@/models/trip/TripModel';
 import { calculateRouteMatch, calculateFare, applyVehicleFareModifier, estimateTripMetrics } from '@/utils/geometry';
 import { passengerAvgRating } from '@/utils/rating';
-import { getSeats, takeSeat } from '../utils/seats';
+import { takeSeat } from '../utils/seats';
 
 /**
  * Registers ride-related socket events:
@@ -15,7 +15,7 @@ import { getSeats, takeSeat } from '../utils/seats';
  *  - accept-ride
  *  - reject-ride
  */
-export function registerRideHandlers(io: any, socket: any, userId: string) {
+export function registerRideHandlers(io: any, socket: any, _userId: string) {
 
     socket.on("request-ride", async (data: any) => {
         const { passengerId, driverId, origin, destination, passengerFare, seats } = data;

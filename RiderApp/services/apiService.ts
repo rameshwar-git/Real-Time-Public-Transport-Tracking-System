@@ -33,7 +33,7 @@ export const fetchAllLocations = async (token?: string | null, origin?: { latitu
     }
 };
 
-export const updateLocation = async (userId: string, coords: any, destination?: any, locationId?: string, token?: string | null, status?: string) => {
+export const updateLocation = async (coords: any, destination?: any, locationId?: string, token?: string | null, status?: string) => {
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
     };

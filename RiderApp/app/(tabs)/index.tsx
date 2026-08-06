@@ -48,6 +48,10 @@ export default function DriverDashboard() {
     const Marker = mapComponents?.Marker;
     const mapHeight = Math.round(Dimensions.get("window").height);
 
+    // The driver's live position (from their shared location feed, falling back to GPS origin).
+    const driverLocation =
+        locations.find((u: any) => u.userId === userId)?.currentLocation || origin;
+
     // The most recently completed trip is shown in a popup review card.
     const completedTrip = activeTrips.find(t => t.status === 'completed') || null;
 
@@ -68,14 +72,22 @@ export default function DriverDashboard() {
                                 initialQuery={destinationText}
                                 onSelect={handleDestinationSelect}
                                 onFocus={handleDestinationSearchFocus}
-                                onChooseOnMap={handleChooseOnMap}
+                                onChooseOnMap={() => {
+                                    // Close the search dropdown so its transparent tap-away
+                                    // overlay doesn't keep covering the map and blocking drags
+                                    // during "choose on map" mode.
+                                    Keyboard.dismiss();
+                                    searchRef.current?.close();
+                                    setSearchOpen(false);
+                                    handleChooseOnMap();
+                                }}
                                 onFocusChange={setSearchOpen}
                             />
                         </View>
                     </View>
                 )}
 
-                {searchOpen && (
+                {searchOpen && !isChoosingOnMap && (
                     <Pressable
                         style={styles.searchDismissOverlay}
                         onPress={() => {
@@ -111,7 +123,7 @@ export default function DriverDashboard() {
                         setMapRegion={handleRegionChangeComplete}
                         locations={locations}
                         currentUserId={userId}
-                        destination={activeTrips.length > 0 ? (activeTrips.find(t => t.status === 'scheduled')?.origin || destination) : destination}
+                        destination={destination}
                         origin={origin}
                         mapRef={mapRef}
                         activeTrips={activeTrips}
@@ -147,6 +159,7 @@ export default function DriverDashboard() {
                     <View style={styles.bottomView}>
                         <ActiveTripsList
                             activeTrips={activeTrips}
+                            driverLocation={driverLocation}
                             onStartTrip={startTrip}
                             onCancelTrip={handleCancelTrip}
                             onCompleteTrip={completeTrip}

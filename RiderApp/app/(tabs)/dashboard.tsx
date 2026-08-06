@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -16,11 +15,10 @@ import { getDriverEarnings, getWeeklyEarnings } from '@/services/apiService';
 import { router } from 'expo-router';
 import { formatFare } from '@/utils/format';
 
-const { width } = Dimensions.get('window');
-
 export default function RiderDashboard() {
   const [earnings, setEarnings] = useState({
     totalEarnings: 0,
+    todayEarnings: 0,
     weeklyEarnings: 0,
     weeklyChange: 0,
     completedRides: 0,
@@ -50,6 +48,7 @@ export default function RiderDashboard() {
       if (earningsData) {
         setEarnings({
           totalEarnings: earningsData.totalEarnings || 0,
+          todayEarnings: earningsData.todayEarnings || 0,
           weeklyEarnings: earningsData.weeklyEarnings || 0,
           weeklyChange: earningsData.weeklyChange || 0,
           completedRides: earningsData.completedRides || 0,
@@ -131,9 +130,9 @@ export default function RiderDashboard() {
         <View style={styles.earningsCard}>
           <View style={styles.earningsTop}>
             <View>
-              <Text style={styles.earningsLabel}>Total Earnings</Text>
+              <Text style={styles.earningsLabel}>Today's Earnings</Text>
               <Text style={styles.totalEarnings}>
-                {formatFare(earnings.totalEarnings)}
+                {formatFare(earnings.todayEarnings)}
               </Text>
             </View>
             <View style={styles.earningsIconContainer}>
