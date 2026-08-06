@@ -160,8 +160,8 @@ export const getUpcomingRides = async (req: AuthRequest, res: Response) => {
 
       return {
         id: trip._id,
-        from: 'Start Location',
-        to: 'Destination',
+        from: trip.startLocation?.description || 'Start Location',
+        to: trip.destination?.description || 'Destination',
         date: isToday ? 'Today' : dayName,
         time: startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         driver: (trip.driverId as any)?.name || 'Driver',
@@ -198,8 +198,8 @@ export const getRecentRides = async (req: AuthRequest, res: Response) => {
       const calculatedFare = fareFor(trip);
       return {
         id: trip._id,
-        from: 'Start Location',
-        to: 'Destination',
+        from: trip.startLocation?.description || 'Start Location',
+        to: trip.destination?.description || 'Destination',
         date: endDate.toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'short',

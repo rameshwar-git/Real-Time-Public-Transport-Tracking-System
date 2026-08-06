@@ -33,6 +33,15 @@ const formatCoord = (lat?: number, lng?: number) => {
   return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 };
 
+// Show the saved location name when available; fall back to raw coordinates
+// for older trips that predate name persistence.
+const formatLocation = (ride: Ride, key: 'from' | 'to') => {
+  const name = key === 'from' ? ride.fromName : ride.toName;
+  const coord = ride[key];
+  if (name && name.trim()) return name;
+  return formatCoord(coord?.latitude, coord?.longitude);
+};
+
 export default function RideHistoryScreen() {
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,13 +83,13 @@ export default function RideHistoryScreen() {
         <View style={styles.routeRow}>
           <MaterialCommunityIcons name="map-marker" size={16} color="#3B82F6" />
           <Text style={styles.routeText} numberOfLines={1}>
-            {formatCoord(item.from?.latitude, item.from?.longitude)}
+            {formatLocation(item, 'from')}
           </Text>
         </View>
         <View style={styles.routeRow}>
           <MaterialCommunityIcons name="map-marker-check" size={16} color="#10B981" />
           <Text style={styles.routeText} numberOfLines={1}>
-            {formatCoord(item.to?.latitude, item.to?.longitude)}
+            {formatLocation(item, 'to')}
           </Text>
         </View>
 

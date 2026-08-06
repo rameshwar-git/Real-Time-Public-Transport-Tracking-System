@@ -52,6 +52,11 @@ export default function RideDetailScreen() {
   const coord = (lat?: number, lng?: number) =>
     lat == null || lng == null ? '—' : `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
+  // Show the saved location name when available; fall back to raw coordinates
+  // for older trips that predate name persistence.
+  const locationLabel = (name?: string, lat?: number, lng?: number) =>
+    (name && name.trim()) ? name : coord(lat, lng);
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, styles.center]} edges={['top', 'left', 'right']}>
@@ -130,14 +135,14 @@ export default function RideDetailScreen() {
             <MaterialCommunityIcons name="map-marker-radius" size={22} color="#3B82F6" />
             <View style={styles.infoTextWrap}>
               <Text style={styles.infoLabel}>Pickup location</Text>
-              <Text style={styles.infoText}>{coord(ride.from?.latitude, ride.from?.longitude)}</Text>
+              <Text style={styles.infoText}>{locationLabel(ride.fromName, ride.from?.latitude, ride.from?.longitude)}</Text>
             </View>
           </View>
           <View style={styles.infoRow}>
             <MaterialCommunityIcons name="map-marker-check" size={22} color="#3B82F6" />
             <View style={styles.infoTextWrap}>
               <Text style={styles.infoLabel}>Destination</Text>
-              <Text style={styles.infoText}>{coord(ride.to?.latitude, ride.to?.longitude)}</Text>
+              <Text style={styles.infoText}>{locationLabel(ride.toName, ride.to?.latitude, ride.to?.longitude)}</Text>
             </View>
           </View>
         </View>

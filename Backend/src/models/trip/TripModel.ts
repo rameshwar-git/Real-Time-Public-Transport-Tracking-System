@@ -20,11 +20,13 @@ const TripSchema = new Schema<ExtendedTrip>({
     otp: { type: String },
     startLocation: {
         latitude: { type: Number, required: true },
-        longitude: { type: Number, required: true }
+        longitude: { type: Number, required: true },
+        description: { type: String }
     },
     destination: {
         latitude: { type: Number, required: true },
-        longitude: { type: Number, required: true }
+        longitude: { type: Number, required: true },
+        description: { type: String }
     },
     startDate: { type: Date, default: Date.now },
     endDate: { type: Date },

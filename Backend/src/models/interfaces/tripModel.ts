@@ -6,10 +6,12 @@ export interface Trip extends Document {
     startLocation: {
         latitude: number;
         longitude: number;
+        description?: string;
     },
     destination: {
         latitude: number;
         longitude: number;
+        description?: string;
     },
     status: 'scheduled' | 'in_progress' | 'completed' | 'canceled';
     startDate: Date;

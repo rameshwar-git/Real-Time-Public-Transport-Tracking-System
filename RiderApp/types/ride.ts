@@ -3,6 +3,8 @@ export interface Ride {
   passengerName: string;
   from: { latitude: number; longitude: number };
   to: { latitude: number; longitude: number };
+  fromName?: string;
+  toName?: string;
   distance: number;
   duration: number;
   fare: number;

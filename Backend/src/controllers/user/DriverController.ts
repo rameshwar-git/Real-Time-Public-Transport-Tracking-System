@@ -327,6 +327,8 @@ export const getDriverRideHistory = async (req: AuthRequest, res: Response) => {
         passengerName: passengerName || 'Passenger',
         from: trip.startLocation,
         to: trip.destination,
+        fromName: trip.startLocation?.description,
+        toName: trip.destination?.description,
         distance: trip.estimatedDistance || 0,
         duration: trip.estimatedDuration || 0,
         fare: fareFor(trip),
